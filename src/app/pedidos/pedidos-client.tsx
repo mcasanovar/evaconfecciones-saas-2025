@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useOrders } from "@/contexts/orders-context";
 import { Header } from "@/components/header";
 import { PedidosFilters } from "@/components/pedidos-filters";
 import { PedidoCard, PedidoCardSkeleton } from "@/components/pedido-card";
-import { useOrders } from "@/contexts/orders-context";
+import { PedidoDetailModal } from "@/components/pedido-detail-modal";
 import { Button } from "@/components/ui/button";
+import { getPedidoById } from "@/actions/pedidos";
+import { PedidoWithRelations } from "@/types";
 
 export function PedidosPageClient() {
   const {
@@ -19,6 +22,10 @@ export function PedidosPageClient() {
     loadMore,
     resetFilters,
   } = useOrders();
+
+  const [selectedPedido, setSelectedPedido] = useState<PedidoWithRelations | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoadingPedido, setIsLoadingPedido] = useState(false);
 
   // Load pedidos on mount
   useEffect(() => {
@@ -41,9 +48,34 @@ export function PedidosPageClient() {
     // TODO: Implement in Phase 7
   };
 
-  const handleCardClick = (id: number) => {
-    console.log("Opening pedido:", id);
-    // TODO: Implement modal in Phase 5
+  const handleCardClick = async (id: number) => {
+    // Open modal immediately
+    setIsModalOpen(true);
+    setIsLoadingPedido(true);
+    setSelectedPedido(null);
+
+    try {
+      const pedido = await getPedidoById(id);
+      if (pedido) {
+        setSelectedPedido(pedido);
+      }
+    } catch (error) {
+      console.error("Error loading pedido:", error);
+      setIsModalOpen(false);
+    } finally {
+      setIsLoadingPedido(false);
+    }
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedPedido(null);
+    setIsLoadingPedido(false);
+  };
+
+  const handlePedidoUpdate = () => {
+    // Reload pedidos after update
+    loadPedidos();
   };
 
   return (
@@ -113,6 +145,15 @@ export function PedidosPageClient() {
           </div>
         )}
       </main>
+
+      {/* Pedido Detail Modal */}
+      <PedidoDetailModal
+        pedido={selectedPedido}
+        open={isModalOpen}
+        onOpenChange={handleModalClose}
+        onUpdate={handlePedidoUpdate}
+        isLoading={isLoadingPedido}
+      />
     </div>
   );
 }
