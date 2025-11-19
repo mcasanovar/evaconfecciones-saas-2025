@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Enums
+enum PedidoEstado {
+  INGRESADO
+  EN_PROCESO
+  ENTREGADO
+}
+
+// Models
+model Colegio {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  precios ColegioPrendaTallaPrecio[]
+  pedidos Pedido[]
+}
+
+model Prenda {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  precios ColegioPrendaTallaPrecio[]
+  items   PedidoItem[]
+}
+
+model Talla {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  orden     Int?
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  precios ColegioPrendaTallaPrecio[]
+  items   PedidoItem[]
+}
+
+/**
+ * Price for a specific Colegio + Prenda + Talla
+ */
+model ColegioPrendaTallaPrecio {
+  id        Int      @id @default(autoincrement())
+  colegioId Int
+  prendaId  Int
+  tallaId   Int
+  precio    Int // CLP
+
+  colegio Colegio @relation(fields: [colegioId], references: [id])
+  prenda  Prenda  @relation(fields: [prendaId], references: [id])
+  talla   Talla   @relation(fields: [tallaId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([colegioId, prendaId, tallaId])
+}
+
+model Pedido {
+  id              Int          @id @default(autoincrement())
+  codigo          String       @unique
+  clienteNombre   String
+  clienteApellido String?
+  clienteTelefono String?
+  clienteEmail    String?
+
+  colegioId Int?
+  anio      Int // denormalized from fechaCreacion for fast filtering
+
+  estado        PedidoEstado @default(INGRESADO)
+  fechaCreacion DateTime     @default(now())
+  fechaEntrega  DateTime?
+
+  total Int @default(0)
+  abono Int @default(0)
+  saldo Int @default(0)
+
+  colegio Colegio? @relation(fields: [colegioId], references: [id])
+  items   PedidoItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PedidoItem {
+  id             Int     @id @default(autoincrement())
+  pedidoId       Int
+  prendaId       Int
+  tallaId        Int?
+  cantidad       Int
+  precioUnitario Int
+  subtotal       Int
+  estaLista      Boolean @default(false)
+
+  pedido Pedido  @relation(fields: [pedidoId], references: [id])
+  prenda Prenda  @relation(fields: [prendaId], references: [id])
+  talla  Talla?  @relation(fields: [tallaId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
