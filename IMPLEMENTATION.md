@@ -243,3 +243,223 @@
 - Match reference image design
 
 ---
+
+## Phase 2 – Basic Pedidos Page Layout ✅
+
+### Completed Tasks
+
+1. **Reusable Header Component**
+   - Created `/src/components/header.tsx`
+   - Accepts `currentPage` prop to highlight active tab
+   - Includes navigation between Pedidos and Administración
+   - Shows "Nuevo Pedido" button only on pedidos page
+   - Consistent styling with slate-800 background
+
+2. **Filters Component**
+   - Created `/src/components/pedidos-filters.tsx`
+   - Search input with Enter key support
+   - Estado dropdown (Todos, Ingresado, En Proceso, Entregado)
+   - Año dropdown (last 5 years + Todos)
+   - "Buscar" button
+   - "Cargar todos los pedidos" button
+   - Matches reference image layout
+
+3. **PedidoCard Component**
+   - Created `/src/components/pedido-card.tsx`
+   - Displays pedido information:
+     - Código and cliente name
+     - Estado badge with color coding (blue/amber/green)
+     - Colegio name with icon
+     - Fecha de creación and fecha de entrega
+     - Progress bar showing completion percentage
+     - Item counts (completed vs total)
+   - Framer Motion animations:
+     - Fade in on mount
+     - Hover scale effect
+   - Skeleton variant for loading states
+   - Click handler for opening modal (Phase 5)
+
+4. **Client-Side State Management**
+   - Created `/src/app/pedidos/pedidos-client.tsx`
+   - useState hooks for filters (search, estado, año)
+   - Loading state with 8 skeleton cards
+   - Placeholder handlers for future functionality:
+     - handleSearch (Phase 3)
+     - handleLoadAll (Phase 3)
+     - handleNewPedido (Phase 7)
+     - handleCardClick (Phase 5)
+
+5. **Updated Pages**
+   - `/src/app/pedidos/page.tsx` - Uses client component
+   - `/src/app/administracion/page.tsx` - Uses Header component
+   - Consistent layout across pages
+
+### Component Structure
+
+```
+/src/components/
+  ├── header.tsx              - Reusable navigation header
+  ├── pedidos-filters.tsx     - Filter controls
+  └── pedido-card.tsx         - Order card with skeleton
+
+/src/app/pedidos/
+  ├── page.tsx                - Server component wrapper
+  └── pedidos-client.tsx      - Client component with state
+```
+
+### Design Features
+
+**Color Coding:**
+- INGRESADO: Blue (bg-blue-500)
+- EN_PROCESO: Amber (bg-amber-500)
+- ENTREGADO: Green (bg-green-500)
+
+**Layout:**
+- Responsive grid: 1 column (mobile) → 2 columns (tablet) → 4 columns (desktop)
+- Card height: auto with flex layout
+- Consistent spacing and padding
+- Matches reference image composition
+
+**Animations:**
+- Card fade-in on mount
+- Hover scale (1.02x)
+- Smooth transitions (0.3s duration)
+
+### Files Created
+
+**Created:**
+- `/src/components/header.tsx` - Navigation header
+- `/src/components/pedidos-filters.tsx` - Filter controls
+- `/src/components/pedido-card.tsx` - Order card component
+- `/src/app/pedidos/pedidos-client.tsx` - Client-side page logic
+
+**Modified:**
+- `/src/app/pedidos/page.tsx` - Simplified to use client component
+- `/src/app/administracion/page.tsx` - Uses Header component
+
+### Next Steps
+**Phase 3** - Load Pedidos from DB (Read-Only)
+- Create server action `getPedidos`
+- Implement OrdersContext for state management
+- Connect filters to database queries
+- Implement infinite scroll (50 at a time)
+- Show real data in cards
+
+---
+
+## Phase 3 – Load Pedidos from DB (Read-Only) ✅
+
+### Completed Tasks
+
+1. **Server Actions**
+   - Created `/src/actions/pedidos.ts`
+   - `getPedidos()` - Fetch pedidos with filters and pagination
+     - Search by cliente nombre/apellido (case-insensitive)
+     - Filter by estado (INGRESADO, EN_PROCESO, ENTREGADO, TODOS)
+     - Filter by año (year of fechaCreacion)
+     - Pagination with skip/take (50 per page)
+     - Returns pedidos with full relations (colegio, items, prenda, talla)
+   - `getPedidoById()` - Fetch single pedido by ID
+   - Proper error handling and logging
+
+2. **OrdersContext**
+   - Created `/src/contexts/orders-context.tsx`
+   - State management for:
+     - `pedidos` - Array of loaded pedidos
+     - `total` - Total count matching filters
+     - `hasMore` - Boolean for pagination
+     - `isLoading` - Loading state
+     - `filters` - Current filter values
+   - Methods:
+     - `loadPedidos(append)` - Load/refresh pedidos
+     - `loadMore()` - Append next page
+     - `setFilters()` - Update filter values
+     - `resetFilters()` - Clear all filters
+   - Default filters: current year, estado TODOS
+
+3. **Updated Pedidos Page**
+   - Wrapped with `OrdersProvider`
+   - Connected filters to context state
+   - Real-time filter updates
+   - Search on Enter key or button click
+   - "Cargar todos" resets filters and reloads
+
+4. **Data Display**
+   - Shows real pedidos from database
+   - Displays count: "Mostrando X de Y pedidos"
+   - Animated cards with Framer Motion
+   - Proper empty state message
+   - Skeleton loaders during initial load
+   - Additional skeletons when loading more
+
+5. **Pagination**
+   - "Cargar más pedidos" button when hasMore
+   - Loads 50 pedidos at a time
+   - Appends to existing list
+   - Shows loading skeletons while fetching more
+   - Button hidden when all loaded
+
+### Features
+
+**Filters:**
+- ✅ Search by cliente name (case-insensitive)
+- ✅ Filter by estado (Todos, Ingresado, En Proceso, Entregado)
+- ✅ Filter by año (last 5 years + Todos)
+- ✅ Real-time updates on search/filter change
+
+**Data Loading:**
+- ✅ Loads on mount with current year filter
+- ✅ 50 pedidos per page
+- ✅ Infinite scroll via "Load More" button
+- ✅ Proper loading states (skeletons)
+- ✅ Error handling
+
+**Display:**
+- ✅ Shows all pedido information
+- ✅ Progress bar with completion percentage
+- ✅ Color-coded estado badges
+- ✅ Formatted dates (DD/MM/YYYY)
+- ✅ Colegio name with icon
+- ✅ Item counts (completed vs total)
+
+### Files Created
+
+**Created:**
+- `/src/actions/pedidos.ts` - Server actions for fetching pedidos
+- `/src/contexts/orders-context.tsx` - React Context for state management
+
+**Modified:**
+- `/src/app/pedidos/page.tsx` - Wrapped with OrdersProvider
+- `/src/app/pedidos/pedidos-client.tsx` - Connected to context, displays real data
+
+### Database Queries
+
+**getPedidos Query:**
+```typescript
+- WHERE: search (clienteNombre OR clienteApellido)
+- WHERE: estado (if not TODOS)
+- WHERE: fechaCreacion (year range if not TODOS)
+- INCLUDE: colegio, items (with prenda, talla)
+- ORDER BY: fechaCreacion DESC
+- PAGINATION: skip, take
+```
+
+### Testing
+
+To test with seed data:
+1. Navigate to `/pedidos`
+2. Should see 4 sample pedidos from seed script
+3. Filter by estado (should work)
+4. Filter by año (should work)
+5. Search by cliente name (should work)
+6. Click "Cargar todos" (should reset and show all)
+
+### Next Steps
+**Phase 4** - Administración Page (Catalog CRUD)
+- Create tabs for Colegios, Prendas, Tallas, Precios
+- Implement data tables with search/filter
+- Create forms for add/edit
+- Implement server actions for CRUD operations
+- Add delete confirmations
+
+---

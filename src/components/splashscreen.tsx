@@ -29,18 +29,17 @@ export function Splashscreen() {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600"
         >
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
             className="text-center"
           >
-            <h1 className="text-4xl font-bold text-white mb-2">
+            <h1 className="text-6xl font-bold text-white tracking-tight">
               Evaconfecciones
             </h1>
-            <p className="text-slate-300">Gestión de Pedidos</p>
           </motion.div>
         </motion.div>
       )}
