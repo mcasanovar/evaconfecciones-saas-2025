@@ -463,3 +463,123 @@ To test with seed data:
 - Add delete confirmations
 
 ---
+
+## Phase 4 – Administración Page (Catalog CRUD) ✅
+
+### Completed Tasks
+
+1. **Server Actions (Full CRUD)**
+   - `/src/actions/colegios.ts` - Create, Read, Update, Delete
+   - `/src/actions/prendas.ts` - Create, Read, Update, Delete
+   - `/src/actions/tallas.ts` - Create, Read, Update, Delete
+   - `/src/actions/precios.ts` - Create, Read, Update, Delete
+   - Relationship validation before delete
+   - Unique constraint validation for precios
+   - revalidatePath for cache invalidation
+
+2. **Table Components**
+   - `/src/components/admin/colegios-table.tsx` - Colegios management
+   - `/src/components/admin/prendas-table.tsx` - Prendas management
+   - `/src/components/admin/tallas-table.tsx` - Tallas management
+   - `/src/components/admin/precios-table.tsx` - Precios management
+   - All with search functionality
+   - Edit and delete actions
+   - Active/Inactive badges
+
+3. **Dialog Components**
+   - `/src/components/admin/colegio-dialog.tsx` - Create/Edit colegio
+   - `/src/components/admin/prenda-dialog.tsx` - Create/Edit prenda
+   - `/src/components/admin/talla-dialog.tsx` - Create/Edit talla
+   - `/src/components/admin/precio-dialog.tsx` - Create/Edit precio
+   - `/src/components/admin/delete-dialog.tsx` - Reusable delete confirmation
+   - All with loading states
+   - Form validation
+   - Toast notifications
+
+4. **Administración Page**
+   - Tabs layout (Colegios, Prendas, Tallas, Precios)
+   - Loads all data on mount
+   - Refresh functionality after CRUD operations
+   - Loading states
+
+### Features
+
+**Colegios Tab:**
+- ✅ Create new colegio
+- ✅ Edit existing colegio
+- ✅ Delete with validation (checks pedidos and precios)
+- ✅ Search by name
+- ✅ Active/Inactive toggle
+
+**Prendas Tab:**
+- ✅ Create new prenda with description
+- ✅ Edit existing prenda
+- ✅ Delete with validation (checks pedido items and precios)
+- ✅ Search by name
+- ✅ Active/Inactive toggle
+
+**Tallas Tab:**
+- ✅ Create new talla with orden
+- ✅ Edit existing talla
+- ✅ Delete with validation (checks pedido items and precios)
+- ✅ Search by name
+- ✅ Orden field for sorting
+- ✅ Active/Inactive toggle
+
+**Precios Tab:**
+- ✅ Create new precio (Colegio + Prenda + Talla)
+- ✅ Edit precio (only amount, not combination)
+- ✅ Delete precio
+- ✅ Search by colegio, prenda, or talla
+- ✅ Formatted currency display (CLP)
+- ✅ Unique constraint validation
+- ✅ Dropdowns show only active items
+
+### Validation Rules
+
+**Delete Validation:**
+- Colegio: Cannot delete if has pedidos or precios
+- Prenda: Cannot delete if has pedido items or precios
+- Talla: Cannot delete if has pedido items or precios
+- Precio: Can always delete (no dependencies)
+
+**Precio Validation:**
+- Unique combination of Colegio + Prenda + Talla
+- Cannot change combination when editing (only precio amount)
+- All fields required
+- Precio must be > 0
+
+### Files Created
+
+**Server Actions:**
+- `/src/actions/colegios.ts`
+- `/src/actions/prendas.ts`
+- `/src/actions/tallas.ts`
+- `/src/actions/precios.ts`
+
+**Components:**
+- `/src/components/admin/colegios-table.tsx`
+- `/src/components/admin/colegio-dialog.tsx`
+- `/src/components/admin/prendas-table.tsx`
+- `/src/components/admin/prenda-dialog.tsx`
+- `/src/components/admin/tallas-table.tsx`
+- `/src/components/admin/talla-dialog.tsx`
+- `/src/components/admin/precios-table.tsx`
+- `/src/components/admin/precio-dialog.tsx`
+- `/src/components/admin/delete-dialog.tsx`
+
+**Pages:**
+- `/src/app/administracion/administracion-client.tsx`
+
+**UI Components Added:**
+- `/src/components/ui/label.tsx` (shadcn)
+
+### Next Steps
+**Phase 5** - Pedido Detail Modal (View/Edit)
+- Create modal to view pedido details
+- Show all items with prenda, talla, cantidad
+- Edit item status (estaLista toggle)
+- Update pedido estado
+- Calculate and display totals
+
+---
