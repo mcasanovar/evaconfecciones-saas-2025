@@ -15,6 +15,7 @@ interface OrdersContextType {
   loadPedidos: (append?: boolean) => Promise<void>;
   loadMore: () => Promise<void>;
   resetFilters: () => void;
+  loadAllPedidos: () => Promise<void>;
 }
 
 const OrdersContext = createContext<OrdersContextType | undefined>(undefined);
@@ -74,6 +75,34 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const loadAllPedidos = useCallback(async () => {
+    // Reset filters and load immediately with default filters
+    setFilters({
+      search: "",
+      estado: "TODOS",
+      anio: new Date().getFullYear(),
+    });
+
+    setIsLoading(true);
+    try {
+      const result: GetPedidosResult = await getPedidos({
+        search: "",
+        estado: undefined,
+        anio: new Date().getFullYear(),
+        skip: 0,
+        take: 50,
+      });
+
+      setPedidos(result.pedidos);
+      setTotal(result.total);
+      setHasMore(result.hasMore);
+    } catch (error) {
+      console.error("Error loading pedidos:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return (
     <OrdersContext.Provider
       value={{
@@ -86,6 +115,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         loadPedidos,
         loadMore,
         resetFilters,
+        loadAllPedidos,
       }}
     >
       {children}

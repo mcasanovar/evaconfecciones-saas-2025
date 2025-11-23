@@ -6,6 +6,7 @@ import { Header } from "@/components/header";
 import { PedidosFilters } from "@/components/pedidos-filters";
 import { PedidoCard, PedidoCardSkeleton } from "@/components/pedido-card";
 import { PedidoDetailModal } from "@/components/pedido-detail-modal";
+import { NewPedidoModal } from "@/components/new-pedido-modal";
 import { Button } from "@/components/ui/button";
 import { getPedidoById } from "@/actions/pedidos";
 import { PedidoWithRelations } from "@/types";
@@ -20,12 +21,13 @@ export function PedidosPageClient() {
     setFilters,
     loadPedidos,
     loadMore,
-    resetFilters,
+    loadAllPedidos,
   } = useOrders();
 
   const [selectedPedido, setSelectedPedido] = useState<PedidoWithRelations | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoadingPedido, setIsLoadingPedido] = useState(false);
+  const [isNewPedidoModalOpen, setIsNewPedidoModalOpen] = useState(false);
 
   // Load pedidos on mount
   useEffect(() => {
@@ -38,14 +40,15 @@ export function PedidosPageClient() {
   };
 
   const handleLoadAll = () => {
-    resetFilters();
-    // Load will trigger via useEffect when filters change
-    setTimeout(() => loadPedidos(), 0);
+    loadAllPedidos();
   };
 
   const handleNewPedido = () => {
-    console.log("Creating new pedido");
-    // TODO: Implement in Phase 7
+    setIsNewPedidoModalOpen(true);
+  };
+
+  const handleNewPedidoSuccess = () => {
+    loadPedidos();
   };
 
   const handleCardClick = async (id: number) => {
@@ -82,6 +85,16 @@ export function PedidosPageClient() {
     <div className="min-h-screen bg-slate-100">
       <Header currentPage="pedidos" onNewPedido={handleNewPedido} />
 
+      {/* Full screen loader for filtering */}
+      {isLoading && pedidos.length === 0 && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-8 flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="text-lg font-medium">Cargando pedidos...</p>
+          </div>
+        </div>
+      )}
+
       <main className="container mx-auto px-6 py-8">
         <PedidosFilters
           search={filters.search || ""}
@@ -105,12 +118,7 @@ export function PedidosPageClient() {
 
         {/* Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {isLoading && pedidos.length === 0 ? (
-            // Show skeletons while loading initial data
-            Array.from({ length: 8 }).map((_, i) => (
-              <PedidoCardSkeleton key={i} />
-            ))
-          ) : pedidos.length > 0 ? (
+          {pedidos.length > 0 ? (
             // Show actual pedidos
             pedidos.map((pedido) => (
               <PedidoCard
@@ -119,12 +127,12 @@ export function PedidosPageClient() {
                 onClick={() => handleCardClick(pedido.id)}
               />
             ))
-          ) : (
-            // No results
+          ) : !isLoading ? (
+            // No results (only show when not loading)
             <div className="col-span-full text-center py-12 text-muted-foreground">
               No hay pedidos para mostrar
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Load More Button */}
@@ -153,6 +161,13 @@ export function PedidosPageClient() {
         onOpenChange={handleModalClose}
         onUpdate={handlePedidoUpdate}
         isLoading={isLoadingPedido}
+      />
+
+      {/* New Pedido Modal */}
+      <NewPedidoModal
+        open={isNewPedidoModalOpen}
+        onOpenChange={setIsNewPedidoModalOpen}
+        onSuccess={handleNewPedidoSuccess}
       />
     </div>
   );

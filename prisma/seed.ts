@@ -123,6 +123,7 @@ async function main() {
     data: [
       {
         pedidoId: pedido1.id,
+        colegioId: colegios[0].id,
         prendaId: prendas[0].id, // Camisa
         tallaId: tallas[2].id, // M
         cantidad: 2,
@@ -132,6 +133,7 @@ async function main() {
       },
       {
         pedidoId: pedido1.id,
+        colegioId: colegios[0].id,
         prendaId: prendas[1].id, // Pantalón
         tallaId: tallas[2].id, // M
         cantidad: 2,
@@ -173,6 +175,7 @@ async function main() {
     data: [
       {
         pedidoId: pedido2.id,
+        colegioId: colegios[1].id,
         prendaId: prendas[3].id, // Polera
         tallaId: tallas[3].id, // L
         cantidad: 3,
@@ -182,6 +185,7 @@ async function main() {
       },
       {
         pedidoId: pedido2.id,
+        colegioId: colegios[1].id,
         prendaId: prendas[4].id, // Buzo
         tallaId: tallas[3].id, // L
         cantidad: 1,
@@ -224,6 +228,7 @@ async function main() {
     data: [
       {
         pedidoId: pedido3.id,
+        colegioId: colegios[2].id,
         prendaId: prendas[0].id, // Camisa
         tallaId: tallas[1].id, // S
         cantidad: 1,
@@ -233,6 +238,7 @@ async function main() {
       },
       {
         pedidoId: pedido3.id,
+        colegioId: colegios[2].id,
         prendaId: prendas[2].id, // Falda
         tallaId: tallas[1].id, // S
         cantidad: 2,
@@ -273,6 +279,7 @@ async function main() {
     data: [
       {
         pedidoId: pedido4.id,
+        colegioId: colegios[0].id,
         prendaId: prendas[4].id, // Buzo
         tallaId: tallas[4].id, // XL
         cantidad: 2,

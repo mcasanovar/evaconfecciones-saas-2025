@@ -38,7 +38,7 @@ export function PedidosFilters({
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Input
             type="text"
-            placeholder="Buscar por cliente..."
+            placeholder="Buscar por cliente o código..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={(e) => {

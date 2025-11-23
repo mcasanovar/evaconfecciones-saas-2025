@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { LayoutGrid } from "lucide-react";
 
 interface HeaderProps {
-  currentPage: "pedidos" | "administracion";
+  currentPage: "dashboard" | "pedidos" | "administracion";
   onNewPedido?: () => void;
 }
 
@@ -16,6 +16,19 @@ export function Header({ currentPage, onNewPedido }: HeaderProps) {
           <h1 className="text-xl font-semibold">Evaconfecciones</h1>
         </div>
         <nav className="flex gap-4">
+          <Link href="/dashboard">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={
+                currentPage === "dashboard"
+                  ? "bg-slate-700 text-white hover:bg-slate-600 hover:text-white"
+                  : "border-slate-600 bg-slate-700 text-white hover:bg-slate-600 hover:text-white"
+              }
+            >
+              Dashboard
+            </Button>
+          </Link>
           <Link href="/pedidos">
             <Button
               variant="ghost"
