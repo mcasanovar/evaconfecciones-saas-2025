@@ -1,5 +1,18 @@
 "use client";
 
+/**
+ * PedidoDetailModal Component
+ * 
+ * Modal for viewing and editing pedido details including:
+ * - Client information (nombre, apellido, teléfono, email)
+ * - Pedido items with status tracking (estaLista)
+ * - Abono (payment) management
+ * - Adding/removing items
+ * - Marking pedido as delivered
+ * 
+ * All changes are batched and saved together when "Guardar Cambios" is clicked.
+ */
+
 import { useState, useEffect } from "react";
 import { PedidoWithRelations } from "@/types";
 import { PedidoEstado } from "@prisma/client";
@@ -143,6 +156,16 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     setPendingChanges(newChanges);
   };
 
+  /**
+   * Batch save all pending changes:
+   * 1. Update client information
+   * 2. Delete removed items
+   * 3. Add new items
+   * 4. Update item status (estaLista)
+   * 
+   * All operations are executed in parallel for better performance.
+   * Auto-updates pedido estado to EN_PROCESO if any item is ready.
+   */
   const handleSaveChanges = async () => {
     if (!localPedido) return;
 
@@ -213,10 +236,14 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
       const hasErrors = results.some((r) => !r.success);
 
       if (hasErrors) {
+        const failedOps = results.filter(r => !r.success);
         toast({
-          title: "Error",
-          description: "Algunos cambios no pudieron guardarse",
+          title: "Error al guardar",
+          description: failedOps.length === 1
+            ? "Un cambio no pudo guardarse. Por favor, inténtelo nuevamente."
+            : `${failedOps.length} cambios no pudieron guardarse. Por favor, inténtelo nuevamente.`,
           variant: "destructive",
+          duration: 5000,
         });
       } else {
         // Check if at least one item is ready to update estado to EN_PROCESO
@@ -230,9 +257,13 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
           await updatePedidoEstado(localPedido.id, PedidoEstado.EN_PROCESO);
         }
 
+        const changeCount = operations.length;
         toast({
-          title: "Cambios guardados",
-          description: "Todos los cambios han sido guardados correctamente.",
+          title: "✅ Cambios guardados",
+          description: changeCount === 1
+            ? "El cambio ha sido guardado correctamente."
+            : `${changeCount} cambios guardados correctamente.`,
+          duration: 3000,
         });
 
         // Reset all local changes
@@ -245,10 +276,12 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
         onOpenChange(false); // Close modal after saving changes
       }
     } catch (error) {
+      console.error("Error saving changes:", error);
       toast({
-        title: "Error",
-        description: "Ocurrió un error inesperado",
+        title: "❌ Error inesperado",
+        description: "No se pudieron guardar los cambios. Por favor, verifique su conexión e inténtelo nuevamente.",
         variant: "destructive",
+        duration: 5000,
       });
     } finally {
       setIsSaving(false);
@@ -271,24 +304,28 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
 
       if (result.success) {
         toast({
-          title: "Pedido entregado",
-          description: "El pedido ha sido marcado como entregado.",
+          title: "✅ Pedido entregado",
+          description: `El pedido #${localPedido.codigo} ha sido marcado como entregado exitosamente.`,
+          duration: 3000,
         });
         setPendingChanges(new Map());
         onUpdate();
         onOpenChange(false); // Close modal after marking as entregado
       } else {
         toast({
-          title: "Error",
-          description: result.error,
+          title: "❌ Error al entregar",
+          description: result.error || "No se pudo marcar el pedido como entregado.",
           variant: "destructive",
+          duration: 5000,
         });
       }
     } catch (error) {
+      console.error("Error marking as delivered:", error);
       toast({
-        title: "Error",
-        description: "Ocurrió un error inesperado",
+        title: "❌ Error inesperado",
+        description: "No se pudo marcar el pedido como entregado. Por favor, inténtelo nuevamente.",
         variant: "destructive",
+        duration: 5000,
       });
     } finally {
       setIsSaving(false);
@@ -300,10 +337,31 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
 
     const newAbono = parseFloat(abonoValue);
 
+    // Validate abono is a valid number
     if (isNaN(newAbono)) {
       toast({
         title: "Error",
         description: "Ingrese un valor válido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate abono is not negative
+    if (newAbono < 0) {
+      toast({
+        title: "Error",
+        description: "El abono no puede ser negativo",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate abono is not greater than total
+    if (newAbono > localPedido.total) {
+      toast({
+        title: "Error",
+        description: "El abono no puede ser mayor que el total del pedido",
         variant: "destructive",
       });
       return;
@@ -532,10 +590,10 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
           <div>
-            <DialogTitle className="text-2xl">
+            <DialogTitle className="text-xl sm:text-2xl">
               {isLoading || !localPedido ? "Cargando..." : `Pedido #${localPedido.codigo}`}
             </DialogTitle>
             {localPedido && (
@@ -568,9 +626,9 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
               </div>
 
               {/* Información del cliente */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-lg">Información del Cliente</h3>
+                  <h3 className="font-semibold text-base sm:text-lg">Información del Cliente</h3>
                   <div className="space-y-3">
                     <div>
                       <Label htmlFor="nombre" className="text-xs">Nombre *</Label>
@@ -621,7 +679,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                 </div>
 
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-lg">Detalles del Pedido</h3>
+                  <h3 className="font-semibold text-base sm:text-lg">Detalles del Pedido</h3>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -639,9 +697,9 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
 
               {/* Items del pedido */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-lg">Items del Pedido</h3>
-                  <span className="text-sm text-muted-foreground">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h3 className="font-semibold text-base sm:text-lg">Items del Pedido</h3>
+                  <span className="text-xs sm:text-sm text-muted-foreground">
                     {readyItemsCount} de {localPedido.items.length - deletedItemIds.length + tempItems.length} listos
                     {(tempItems.length > 0 || deletedItemIds.length > 0) && (
                       <span className="ml-2 text-orange-600">
@@ -652,8 +710,8 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                     )}
                   </span>
                 </div>
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full">
+                <div className="border rounded-lg overflow-hidden overflow-x-auto">
+                  <table className="w-full min-w-[640px]">
                     <thead className="bg-muted/50">
                       <tr>
                         <th className="px-4 py-3 text-left text-sm font-medium">Colegio</th>
@@ -763,9 +821,9 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                         Agregar Item
                       </Button>
                     ) : (
-                      <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                      <div className="border rounded-lg p-3 sm:p-4 space-y-4 bg-muted/30">
                         <h4 className="font-medium text-sm">Agregar Nuevo Item</h4>
-                        <div className="grid grid-cols-5 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                           <div>
                             <Label className="text-xs">Colegio</Label>
                             <Select value={selectedColegio} onValueChange={setSelectedColegio}>
@@ -816,9 +874,12 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                             <Input
                               type="number"
                               min="1"
+                              step="1"
                               value={cantidad}
                               onChange={(e) => setCantidad(e.target.value)}
                               className="h-9"
+                              disabled={isSaving}
+                              required
                             />
                           </div>
                           <div className="flex items-end gap-2">
@@ -886,10 +947,12 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                             type="number"
                             min="0"
                             max={localPedido.total}
+                            step="1"
                             value={abonoValue}
                             onChange={(e) => setAbonoValue(e.target.value)}
                             className="h-8"
                             disabled={isSaving}
+                            required
                           />
                           <Button
                             size="sm"
@@ -933,17 +996,35 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                   onClick={handleMarcarEntregado}
                   disabled={isSaving}
                   variant="default"
+                  className="transition-all duration-200"
                 >
-                  Marcar como Entregado
+                  {isSaving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Procesando...
+                    </>
+                  ) : (
+                    "Marcar como Entregado"
+                  )}
                 </Button>
               )}
               <Button
                 onClick={handleSaveChanges}
                 disabled={isSaving || !hasChanges}
                 variant="default"
+                className="transition-all duration-200"
               >
-                <Save className="h-4 w-4 mr-2" />
-                {isSaving ? "Guardando..." : "Guardar Cambios"}
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Guardar Cambios
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </>

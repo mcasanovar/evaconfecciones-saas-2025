@@ -1,5 +1,21 @@
 "use client";
 
+/**
+ * NewPedidoModal Component
+ * 
+ * Modal for creating new pedidos with:
+ * - Client information (nombre, apellido, teléfono, email)
+ * - Order details (año, fecha de entrega)
+ * - Multiple items (colegio, prenda, talla, cantidad)
+ * - Abono (initial payment)
+ * 
+ * Features:
+ * - Duplicate item detection (merges quantities)
+ * - Real-time total and saldo calculation
+ * - Comprehensive input validation
+ * - Responsive layout for mobile/desktop
+ */
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -71,6 +87,11 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
     setTallas(tallasData);
   };
 
+  /**
+   * Add item to the pedido.
+   * If an identical item exists (same colegio, prenda, talla),
+   * merge quantities instead of creating duplicate.
+   */
   const handleAddItem = async () => {
     if (!selectedColegio || !selectedPrenda || !selectedTalla || !cantidad) {
       toast({
@@ -85,6 +106,16 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
     const prendaId = parseInt(selectedPrenda);
     const tallaId = parseInt(selectedTalla);
     const cant = parseInt(cantidad);
+
+    // Validate cantidad is positive
+    if (isNaN(cant) || cant <= 0) {
+      toast({
+        title: "Error",
+        description: "La cantidad debe ser un número mayor a 0",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Get price
     const precio = await getPrecio(colegioId, prendaId, tallaId);
@@ -137,10 +168,53 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
   };
 
   const handleSubmit = async () => {
-    if (!clienteNombre || items.length === 0) {
+    // Validate required fields
+    if (!clienteNombre || clienteNombre.trim() === "") {
       toast({
         title: "Error",
-        description: "Complete los campos requeridos y agregue al menos un item",
+        description: "El nombre del cliente es requerido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (items.length === 0) {
+      toast({
+        title: "Error",
+        description: "Debe agregar al menos un item al pedido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate año
+    const anioNum = parseInt(anio);
+    if (isNaN(anioNum) || anioNum < 2000 || anioNum > 2100) {
+      toast({
+        title: "Error",
+        description: "El año debe ser un número válido entre 2000 y 2100",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate abono
+    const total = calculateTotal();
+    const abonoNum = parseFloat(abono) || 0;
+
+    if (abonoNum < 0) {
+      toast({
+        title: "Error",
+        description: "El abono no puede ser negativo",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (abonoNum > total) {
+      toast({
+        title: "Error",
+        description: "El abono no puede ser mayor que el total del pedido",
         variant: "destructive",
       });
       return;
@@ -166,24 +240,28 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
 
       if (result.success) {
         toast({
-          title: "Pedido creado",
-          description: `Pedido #${result.pedido?.codigo} creado exitosamente`,
+          title: "✅ Pedido creado",
+          description: `El pedido #${result.pedido?.codigo} ha sido creado exitosamente con ${items.length} item${items.length > 1 ? 's' : ''}.`,
+          duration: 3000,
         });
         handleReset();
         onSuccess();
         onOpenChange(false);
       } else {
         toast({
-          title: "Error",
-          description: result.error,
+          title: "❌ Error al crear pedido",
+          description: result.error || "No se pudo crear el pedido. Por favor, inténtelo nuevamente.",
           variant: "destructive",
+          duration: 5000,
         });
       }
     } catch (error) {
+      console.error("Error creating pedido:", error);
       toast({
-        title: "Error",
-        description: "Ocurrió un error inesperado",
+        title: "❌ Error inesperado",
+        description: "No se pudo crear el pedido. Por favor, verifique su conexión e inténtelo nuevamente.",
         variant: "destructive",
+        duration: 5000,
       });
     } finally {
       setIsSubmitting(false);
@@ -217,16 +295,16 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Nuevo Pedido</DialogTitle>
+          <DialogTitle className="text-xl sm:text-2xl">Nuevo Pedido</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Client Information */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-lg">Información del Cliente</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <h3 className="font-semibold text-base sm:text-lg">Información del Cliente</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="clienteNombre">Nombre *</Label>
                 <Input
@@ -234,6 +312,8 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                   value={clienteNombre}
                   onChange={(e) => setClienteNombre(e.target.value)}
                   placeholder="Nombre del cliente"
+                  required
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -243,15 +323,18 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                   value={clienteApellido}
                   onChange={(e) => setClienteApellido(e.target.value)}
                   placeholder="Apellido del cliente"
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
                 <Label htmlFor="clienteTelefono">Teléfono</Label>
                 <Input
                   id="clienteTelefono"
+                  type="tel"
                   value={clienteTelefono}
                   onChange={(e) => setClienteTelefono(e.target.value)}
                   placeholder="+56 9 1234 5678"
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -262,6 +345,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                   value={clienteEmail}
                   onChange={(e) => setClienteEmail(e.target.value)}
                   placeholder="cliente@email.com"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -269,8 +353,8 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
 
           {/* Order Information */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-lg">Información del Pedido</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <h3 className="font-semibold text-base sm:text-lg">Información del Pedido</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="anio">Año</Label>
                 <Input
@@ -278,6 +362,9 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                   type="number"
                   value={anio}
                   onChange={(e) => setAnio(e.target.value)}
+                  min="2000"
+                  max="2100"
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -287,6 +374,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                   type="date"
                   value={fechaEntrega}
                   onChange={(e) => setFechaEntrega(e.target.value)}
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -294,8 +382,8 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
 
           {/* Add Items */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-lg">Agregar Items</h3>
-            <div className="grid grid-cols-5 gap-4">
+            <h3 className="font-semibold text-base sm:text-lg">Agregar Items</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div>
                 <Label>Colegio *</Label>
                 <Select value={selectedColegio} onValueChange={setSelectedColegio}>
@@ -346,8 +434,11 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                 <Input
                   type="number"
                   min="1"
+                  step="1"
                   value={cantidad}
                   onChange={(e) => setCantidad(e.target.value)}
+                  disabled={isSubmitting}
+                  required
                 />
               </div>
               <div className="flex items-end">
@@ -362,9 +453,9 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
           {/* Items List */}
           {items.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-semibold text-lg">Items del Pedido</h3>
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full">
+              <h3 className="font-semibold text-base sm:text-lg">Items del Pedido</h3>
+              <div className="border rounded-lg overflow-hidden overflow-x-auto">
+                <table className="w-full min-w-[640px]">
                   <thead className="bg-muted/50">
                     <tr>
                       <th className="px-4 py-3 text-left text-sm font-medium">Colegio</th>
@@ -422,9 +513,11 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                       type="number"
                       min="0"
                       max={total}
+                      step="1"
                       value={abono}
                       onChange={(e) => setAbono(e.target.value)}
                       placeholder="0"
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="flex justify-between text-lg font-bold border-t pt-2">
@@ -440,11 +533,27 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+            className="transition-all duration-200"
+          >
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || items.length === 0}>
-            {isSubmitting ? "Creando..." : "Crear Pedido"}
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting || items.length === 0}
+            className="transition-all duration-200"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Creando...
+              </>
+            ) : (
+              "Crear Pedido"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

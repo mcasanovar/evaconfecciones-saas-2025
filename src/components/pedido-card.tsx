@@ -61,11 +61,12 @@ export function PedidoCard({ pedido, onClick }: PedidoCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      whileHover={{ scale: 1.02 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+      whileTap={{ scale: 0.98 }}
     >
       <Card
-        className="p-6 h-full cursor-pointer hover:shadow-lg transition-shadow"
+        className="p-6 h-full cursor-pointer hover:shadow-lg transition-all duration-200"
         onClick={onClick}
       >
         <div className="flex flex-col h-full gap-4">
