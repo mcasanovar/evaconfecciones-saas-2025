@@ -70,7 +70,7 @@ export function ColegioDialog({ colegio, open, onOpenChange }: ColegioDialogProp
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Ocurrió un error inesperado",

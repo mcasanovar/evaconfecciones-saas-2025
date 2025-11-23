@@ -32,7 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { updatePedidoItemStatus, updatePedidoEstado, updatePedidoAbono, addItemToPedido, deletePedidoItem, updatePedidoClientInfo } from "@/actions/pedidos";
 import { getActiveColegios, getActivePrendas, getActiveTallas, getPrecio } from "@/actions/catalog";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, User, Phone, Mail, Building2, CheckCircle2, Save, Edit2, Plus, Trash2 } from "lucide-react";
+import { Calendar, CheckCircle2, Save, Plus, Trash2, Edit2 } from "lucide-react";
 import { Colegio, Prenda, Talla } from "@prisma/client";
 
 interface PedidoDetailModalProps {
@@ -389,11 +389,11 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
       } else {
         toast({
           title: "Error",
-          description: result.error,
+          description: "No se pudo actualizar el abono.",
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Ocurrió un error inesperado",
@@ -478,7 +478,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
         // Check if item exists in existing pedido items (not deleted)
         const existingPedidoItem = localPedido.items.find(
           item => !deletedItemIds.includes(item.id) &&
-            (item as any).colegioId === colegioId &&
+            item.colegioId === colegioId &&
             item.prendaId === prendaId &&
             item.tallaId === tallaId
         );
@@ -525,7 +525,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
       setSelectedTalla("");
       setCantidad("1");
       setIsAddingItem(false);
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Ocurrió un error inesperado",
@@ -735,7 +735,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                           const hasChange = pendingChanges.has(item.id);
                           return (
                             <tr key={item.id} className={isReady ? "bg-green-50" : ""}>
-                              <td className="px-4 py-3 text-sm">{(item as any).colegio?.nombre || "N/A"}</td>
+                              <td className="px-4 py-3 text-sm">{colegios.find(c => c.id === item.colegioId)?.nombre || "N/A"}</td>
                               <td className="px-4 py-3 text-sm">{item.prenda?.nombre || "N/A"}</td>
                               <td className="px-4 py-3 text-sm">{item.talla?.nombre || "N/A"}</td>
                               <td className="px-4 py-3 text-sm text-center">{item.cantidad}</td>

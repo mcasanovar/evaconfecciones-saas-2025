@@ -111,7 +111,7 @@ export function PrecioDialog({ precio, colegios, prendas, tallas, open, onOpenCh
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Ocurrió un error inesperado",

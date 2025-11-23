@@ -73,7 +73,7 @@ export function TallaDialog({ talla, open, onOpenChange }: TallaDialogProps) {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Ocurrió un error inesperado",

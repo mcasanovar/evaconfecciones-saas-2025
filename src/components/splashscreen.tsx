@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Scissors, Shirt } from "lucide-react";
+import { Scissors } from "lucide-react";
 
 export function Splashscreen() {
   const [show, setShow] = useState(false);

@@ -50,7 +50,7 @@ export async function getPedidos(
 
   try {
     // Build where clause
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     // Search filter (cliente nombre, apellido, or codigo)
     if (search && search.trim() !== "") {

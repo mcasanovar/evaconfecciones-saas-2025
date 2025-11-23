@@ -73,7 +73,7 @@ export function PrendaDialog({ prenda, open, onOpenChange }: PrendaDialogProps) 
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Ocurrió un error inesperado",

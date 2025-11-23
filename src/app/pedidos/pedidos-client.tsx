@@ -101,7 +101,7 @@ export function PedidosPageClient() {
           estado={filters.estado || "TODOS"}
           anio={filters.anio?.toString() || "TODOS"}
           onSearchChange={(value) => setFilters({ ...filters, search: value })}
-          onEstadoChange={(value) => setFilters({ ...filters, estado: value as any })}
+          onEstadoChange={(value) => setFilters({ ...filters, estado: value as "TODOS" | "INGRESADO" | "EN_PROCESO" | "ENTREGADO" })}
           onAnioChange={(value) =>
             setFilters({ ...filters, anio: value === "TODOS" ? undefined : parseInt(value) })
           }

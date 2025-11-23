@@ -12,6 +12,7 @@ export type PedidoWithRelations = Pedido & {
 export type PedidoItemWithRelations = PedidoItem & {
   prenda: Prenda;
   talla: Talla | null;
+  colegio?: Colegio;
 };
 
 // Filter types
