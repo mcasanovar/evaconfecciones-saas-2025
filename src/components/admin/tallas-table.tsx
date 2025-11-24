@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Talla } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Pagination, PaginationInfo } from "@/components/ui/pagination";
 import { Pencil, Trash2, Plus, Search } from "lucide-react";
 import { TallaDialog } from "./talla-dialog";
 import { DeleteDialog } from "./delete-dialog";
@@ -14,20 +15,58 @@ import { useToast } from "@/hooks/use-toast";
 
 interface TallasTableProps {
   tallas: Talla[];
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  searchQuery?: string;
+  onPageChange: (page: number) => void;
+  onSearchQueryChange: (query: string) => void;
+  onSearch: (search: string) => void;
   onRefresh: () => void;
 }
 
-export function TallasTable({ tallas, onRefresh }: TallasTableProps) {
-  const [search, setSearch] = useState("");
+export function TallasTable({
+  tallas,
+  currentPage,
+  totalPages,
+  totalItems,
+  searchQuery = "",
+  onPageChange,
+  onSearchQueryChange,
+  onSearch,
+  onRefresh,
+}: TallasTableProps) {
+  const [search, setSearch] = useState(searchQuery);
   const [editingTalla, setEditingTalla] = useState<Talla | null>(null);
   const [deletingTalla, setDeletingTalla] = useState<Talla | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  const filteredTallas = tallas.filter((talla) =>
-    talla.nombre.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    setSearch(searchQuery);
+  }, [searchQuery]);
+
+  const handleSearchInputChange = (value: string) => {
+    setSearch(value);
+    onSearchQueryChange(value);
+  };
+
+  const handleSearch = () => {
+    onSearch(search);
+  };
+
+  const handleClear = () => {
+    setSearch("");
+    onSearchQueryChange("");
+    onSearch("");
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
 
   const handleEdit = (talla: Talla) => {
     setEditingTalla(talla);
@@ -68,15 +107,24 @@ export function TallasTable({ tallas, onRefresh }: TallasTableProps) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar talla..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 max-w-md">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar talla..."
+              value={search}
+              onChange={(e) => handleSearchInputChange(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="pl-10"
+            />
+          </div>
+          <Button onClick={handleSearch} variant="secondary" size="sm">
+            Buscar
+          </Button>
+          <Button onClick={handleClear} variant="outline" size="sm">
+            Limpiar
+          </Button>
         </div>
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -97,14 +145,14 @@ export function TallasTable({ tallas, onRefresh }: TallasTableProps) {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filteredTallas.length === 0 ? (
+              {tallas.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                    No se encontraron tallas
+                    {search ? "No se encontraron tallas con ese criterio" : "No hay tallas registradas"}
                   </td>
                 </tr>
               ) : (
-                filteredTallas.map((talla) => (
+                tallas.map((talla) => (
                   <tr key={talla.id} className="hover:bg-muted/50">
                     <td className="px-4 py-3">{talla.nombre}</td>
                     <td className="px-4 py-3 text-muted-foreground">{talla.orden}</td>
@@ -141,6 +189,22 @@ export function TallasTable({ tallas, onRefresh }: TallasTableProps) {
           </table>
         </div>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <PaginationInfo
+            currentPage={currentPage}
+            itemsPerPage={20}
+            totalItems={totalItems}
+          />
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+          />
+        </div>
+      )}
 
       {/* Dialogs */}
       <TallaDialog
