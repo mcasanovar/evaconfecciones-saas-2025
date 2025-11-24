@@ -28,6 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { PedidoDetailSkeleton } from "@/components/pedido-detail-skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { updatePedidoItemStatus, updatePedidoEstado, updatePedidoAbono, addItemToPedido, deletePedidoItem, updatePedidoClientInfo } from "@/actions/pedidos";
 import { getActiveColegios, getActivePrendas, getActiveTallas, getPrecio } from "@/actions/catalog";
@@ -74,6 +75,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
   const [clienteApellido, setClienteApellido] = useState<string>("");
   const [clienteTelefono, setClienteTelefono] = useState<string>("");
   const [clienteEmail, setClienteEmail] = useState<string>("");
+  const [detalle, setDetalle] = useState<string>("");
   const [hasClientChanges, setHasClientChanges] = useState(false);
 
   // Add item form state
@@ -121,6 +123,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
       setClienteApellido(localPedido.clienteApellido || "");
       setClienteTelefono(localPedido.clienteTelefono || "");
       setClienteEmail(localPedido.clienteEmail || "");
+      setDetalle(localPedido.detalle || "");
     }
   }, [localPedido]);
 
@@ -195,7 +198,8 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
             clienteNombre,
             clienteApellido,
             clienteTelefono,
-            clienteEmail
+            clienteEmail,
+            detalle
           )
         );
       }
@@ -411,7 +415,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     setIsEditingAbono(false);
   };
 
-  const handleClientInfoChange = (field: 'nombre' | 'apellido' | 'telefono' | 'email', value: string) => {
+  const handleClientInfoChange = (field: 'nombre' | 'apellido' | 'telefono' | 'email' | 'detalle', value: string) => {
     setHasClientChanges(true);
     switch (field) {
       case 'nombre':
@@ -425,6 +429,12 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
         break;
       case 'email':
         setClienteEmail(value);
+        break;
+      case 'detalle':
+        // Limit to 500 characters
+        if (value.length <= 500) {
+          setDetalle(value);
+        }
         break;
     }
   };
@@ -693,6 +703,25 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Detalle del pedido */}
+              <div className="space-y-2">
+                <Label htmlFor="detalle" className="text-sm font-semibold">
+                  Detalle / Notas
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    ({detalle.length}/500 caracteres)
+                  </span>
+                </Label>
+                <Textarea
+                  id="detalle"
+                  value={detalle}
+                  onChange={(e) => handleClientInfoChange('detalle', e.target.value)}
+                  placeholder="Agregar notas o detalles adicionales del pedido..."
+                  className="min-h-[80px] resize-none"
+                  disabled={isSaving || localPedido.estado === PedidoEstado.ENTREGADO}
+                  maxLength={500}
+                />
               </div>
 
               {/* Items del pedido */}

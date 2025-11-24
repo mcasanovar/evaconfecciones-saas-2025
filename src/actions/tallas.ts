@@ -2,13 +2,44 @@
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { PaginationParams, PaginatedResponse } from "./colegios";
 
-export async function getTallas() {
+export async function getTallas(params?: PaginationParams): Promise<PaginatedResponse<Awaited<ReturnType<typeof prisma.talla.findMany>>[0]>> {
   try {
+    const page = params?.page ?? 1;
+    const pageSize = params?.pageSize ?? 20;
+    const search = params?.search ?? "";
+
+    // Build where clause for search
+    const where = search
+      ? {
+        nombre: {
+          contains: search,
+          mode: "insensitive" as const,
+        },
+      }
+      : {};
+
+    // Get total count for pagination
+    const totalItems = await prisma.talla.count({ where });
+
+    // Get paginated data
     const tallas = await prisma.talla.findMany({
+      where,
       orderBy: { orden: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
-    return tallas;
+
+    return {
+      data: tallas,
+      pagination: {
+        page,
+        pageSize,
+        totalItems,
+        totalPages: Math.ceil(totalItems / pageSize),
+      },
+    };
   } catch (error) {
     console.error("Error fetching tallas:", error);
     throw new Error("Failed to fetch tallas");

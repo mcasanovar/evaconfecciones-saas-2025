@@ -2,10 +2,60 @@
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { PaginationParams, PaginatedResponse } from "./colegios";
 
-export async function getPrecios() {
+type PrecioWithRelations = Awaited<ReturnType<typeof prisma.colegioPrendaTallaPrecio.findMany<{
+  include: {
+    colegio: true;
+    prenda: true;
+    talla: true;
+  };
+}>>>[0];
+
+export async function getPrecios(params?: PaginationParams): Promise<PaginatedResponse<PrecioWithRelations>> {
   try {
+    const page = params?.page ?? 1;
+    const pageSize = params?.pageSize ?? 20;
+    const search = params?.search ?? "";
+
+    // Build where clause for search across related fields
+    const where = search
+      ? {
+        OR: [
+          {
+            colegio: {
+              nombre: {
+                contains: search,
+                mode: "insensitive" as const,
+              },
+            },
+          },
+          {
+            prenda: {
+              nombre: {
+                contains: search,
+                mode: "insensitive" as const,
+              },
+            },
+          },
+          {
+            talla: {
+              nombre: {
+                contains: search,
+                mode: "insensitive" as const,
+              },
+            },
+          },
+        ],
+      }
+      : {};
+
+    // Get total count for pagination
+    const totalItems = await prisma.colegioPrendaTallaPrecio.count({ where });
+
+    // Get paginated data
     const precios = await prisma.colegioPrendaTallaPrecio.findMany({
+      where,
       include: {
         colegio: true,
         prenda: true,
@@ -16,8 +66,19 @@ export async function getPrecios() {
         { prenda: { nombre: "asc" } },
         { talla: { orden: "asc" } },
       ],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
-    return precios;
+
+    return {
+      data: precios,
+      pagination: {
+        page,
+        pageSize,
+        totalItems,
+        totalPages: Math.ceil(totalItems / pageSize),
+      },
+    };
   } catch (error) {
     console.error("Error fetching precios:", error);
     throw new Error("Failed to fetch precios");

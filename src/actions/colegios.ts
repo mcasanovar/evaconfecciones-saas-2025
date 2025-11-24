@@ -3,12 +3,58 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-export async function getColegios() {
+export interface PaginationParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export async function getColegios(params?: PaginationParams): Promise<PaginatedResponse<Awaited<ReturnType<typeof prisma.colegio.findMany>>[0]>> {
   try {
+    const page = params?.page ?? 1;
+    const pageSize = params?.pageSize ?? 20;
+    const search = params?.search ?? "";
+
+    // Build where clause for search
+    const where = search
+      ? {
+        nombre: {
+          contains: search,
+          mode: "insensitive" as const,
+        },
+      }
+      : {};
+
+    // Get total count for pagination
+    const totalItems = await prisma.colegio.count({ where });
+
+    // Get paginated data
     const colegios = await prisma.colegio.findMany({
+      where,
       orderBy: { nombre: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
-    return colegios;
+
+    return {
+      data: colegios,
+      pagination: {
+        page,
+        pageSize,
+        totalItems,
+        totalPages: Math.ceil(totalItems / pageSize),
+      },
+    };
   } catch (error) {
     console.error("Error fetching colegios:", error);
     throw new Error("Failed to fetch colegios");

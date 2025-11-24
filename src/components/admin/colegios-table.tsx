@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Colegio } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Pagination, PaginationInfo } from "@/components/ui/pagination";
 import { Pencil, Trash2, Plus, Search } from "lucide-react";
 import { ColegioDialog } from "./colegio-dialog";
 import { DeleteDialog } from "./delete-dialog";
@@ -14,20 +15,59 @@ import { useToast } from "@/hooks/use-toast";
 
 interface ColegiosTableProps {
   colegios: Colegio[];
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  searchQuery?: string;
+  onPageChange: (page: number) => void;
+  onSearchQueryChange: (query: string) => void;
+  onSearch: (search: string) => void;
   onRefresh: () => void;
 }
 
-export function ColegiosTable({ colegios, onRefresh }: ColegiosTableProps) {
-  const [search, setSearch] = useState("");
+export function ColegiosTable({
+  colegios,
+  currentPage,
+  totalPages,
+  totalItems,
+  searchQuery = "",
+  onPageChange,
+  onSearchQueryChange,
+  onSearch,
+  onRefresh,
+}: ColegiosTableProps) {
+  const [search, setSearch] = useState(searchQuery);
   const [editingColegio, setEditingColegio] = useState<Colegio | null>(null);
   const [deletingColegio, setDeletingColegio] = useState<Colegio | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  const filteredColegios = colegios.filter((colegio) =>
-    colegio.nombre.toLowerCase().includes(search.toLowerCase())
-  );
+  // Sync local search with prop
+  useEffect(() => {
+    setSearch(searchQuery);
+  }, [searchQuery]);
+
+  const handleSearchInputChange = (value: string) => {
+    setSearch(value);
+    onSearchQueryChange(value);
+  };
+
+  const handleSearch = () => {
+    onSearch(search);
+  };
+
+  const handleClear = () => {
+    setSearch("");
+    onSearchQueryChange("");
+    onSearch("");
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
 
   const handleEdit = (colegio: Colegio) => {
     setEditingColegio(colegio);
@@ -68,15 +108,24 @@ export function ColegiosTable({ colegios, onRefresh }: ColegiosTableProps) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar colegio..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 max-w-md">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar colegio..."
+              value={search}
+              onChange={(e) => handleSearchInputChange(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="pl-10"
+            />
+          </div>
+          <Button onClick={handleSearch} variant="secondary" size="sm">
+            Buscar
+          </Button>
+          <Button onClick={handleClear} variant="outline" size="sm">
+            Limpiar
+          </Button>
         </div>
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -96,14 +145,14 @@ export function ColegiosTable({ colegios, onRefresh }: ColegiosTableProps) {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filteredColegios.length === 0 ? (
+              {colegios.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
-                    No se encontraron colegios
+                    {search ? "No se encontraron colegios con ese criterio" : "No hay colegios registrados"}
                   </td>
                 </tr>
               ) : (
-                filteredColegios.map((colegio) => (
+                colegios.map((colegio) => (
                   <tr key={colegio.id} className="hover:bg-muted/50">
                     <td className="px-4 py-3">{colegio.nombre}</td>
                     <td className="px-4 py-3">
@@ -139,6 +188,22 @@ export function ColegiosTable({ colegios, onRefresh }: ColegiosTableProps) {
           </table>
         </div>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <PaginationInfo
+            currentPage={currentPage}
+            itemsPerPage={20}
+            totalItems={totalItems}
+          />
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+          />
+        </div>
+      )}
 
       {/* Dialogs */}
       <ColegioDialog
