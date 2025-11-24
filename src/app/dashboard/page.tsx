@@ -11,6 +11,9 @@ import {
   AlertCircle
 } from "lucide-react";
 
+// Revalidate every 30 seconds to ensure fresh data
+export const revalidate = 30;
+
 export default async function DashboardPage() {
   const [stats, recentPedidos] = await Promise.all([
     getDashboardStats(),
