@@ -211,12 +211,18 @@ export async function updatePedidoClientInfo(
   clienteNombre: string,
   clienteApellido: string,
   clienteTelefono: string,
-  clienteEmail: string
+  clienteEmail: string,
+  detalle?: string
 ) {
   try {
     // Validate required fields
     if (!clienteNombre || clienteNombre.trim() === "") {
       return { success: false, error: "El nombre del cliente es requerido" };
+    }
+
+    // Validate detalle length
+    if (detalle && detalle.length > 500) {
+      return { success: false, error: "El detalle no puede exceder 500 caracteres" };
     }
 
     const updatedPedido = await prisma.pedido.update({
@@ -226,6 +232,7 @@ export async function updatePedidoClientInfo(
         clienteApellido: clienteApellido.trim() || null,
         clienteTelefono: clienteTelefono.trim() || null,
         clienteEmail: clienteEmail.trim() || null,
+        detalle: detalle?.trim() || null,
       },
     });
 

@@ -91,6 +91,8 @@ model Pedido {
   fechaCreacion DateTime     @default(now())
   fechaEntrega  DateTime?
 
+  detalle String? // Optional order notes/details (max 500 chars)
+
   total Int @default(0)
   abono Int @default(0)
   saldo Int @default(0)
