@@ -30,6 +30,12 @@ export interface RecentPedido {
   } | null;
 }
 
+/**
+ * Get dashboard statistics including pedido counts by estado and financial totals.
+ * Data is aggregated from the pedidos table.
+ * 
+ * @returns Dashboard statistics with counts and monetary totals
+ */
 export async function getDashboardStats(): Promise<DashboardStats> {
   try {
     const [
@@ -62,20 +68,41 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       }),
     ]);
 
-    return {
+    const stats = {
       totalPedidos,
       pedidosIngresados,
       pedidosEnProceso,
       pedidosEntregados,
-      totalVentas: totalesResult._sum.total || 0,
-      saldoPendiente: totalesResult._sum.saldo || 0,
+      totalVentas: totalesResult._sum.total ?? 0,
+      saldoPendiente: totalesResult._sum.saldo ?? 0,
     };
+
+    console.log("[Dashboard] Stats fetched:", {
+      totalPedidos: stats.totalPedidos,
+      byEstado: {
+        ingresados: stats.pedidosIngresados,
+        enProceso: stats.pedidosEnProceso,
+        entregados: stats.pedidosEntregados,
+      },
+      financials: {
+        totalVentas: stats.totalVentas,
+        saldoPendiente: stats.saldoPendiente,
+      },
+    });
+
+    return stats;
   } catch (error) {
-    console.error("Error fetching dashboard stats:", error);
+    console.error("[Dashboard] Error fetching stats:", error);
     throw new Error("Failed to fetch dashboard stats");
   }
 }
 
+/**
+ * Get pedido counts grouped by estado.
+ * Useful for charts and visualizations.
+ * 
+ * @returns Array of pedido counts by estado
+ */
 export async function getPedidosByEstado(): Promise<PedidosByEstado[]> {
   try {
     const result = await prisma.pedido.groupBy({
@@ -85,16 +112,27 @@ export async function getPedidosByEstado(): Promise<PedidosByEstado[]> {
       },
     });
 
-    return result.map((item) => ({
+    const pedidosByEstado = result.map((item) => ({
       estado: item.estado,
       count: item._count.id,
     }));
+
+    console.log("[Dashboard] Pedidos by estado:", pedidosByEstado);
+
+    return pedidosByEstado;
   } catch (error) {
-    console.error("Error fetching pedidos by estado:", error);
+    console.error("[Dashboard] Error fetching pedidos by estado:", error);
     throw new Error("Failed to fetch pedidos by estado");
   }
 }
 
+/**
+ * Get the most recent pedidos ordered by creation date.
+ * Includes client info, estado, and colegio name.
+ * 
+ * @param limit - Number of pedidos to fetch (default: 5)
+ * @returns Array of recent pedidos
+ */
 export async function getRecentPedidos(limit: number = 5): Promise<RecentPedido[]> {
   try {
     const pedidos = await prisma.pedido.findMany({
@@ -118,9 +156,11 @@ export async function getRecentPedidos(limit: number = 5): Promise<RecentPedido[
       },
     });
 
+    console.log(`[Dashboard] Fetched ${pedidos.length} recent pedidos`);
+
     return pedidos;
   } catch (error) {
-    console.error("Error fetching recent pedidos:", error);
+    console.error("[Dashboard] Error fetching recent pedidos:", error);
     throw new Error("Failed to fetch recent pedidos");
   }
 }

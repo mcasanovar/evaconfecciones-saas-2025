@@ -35,8 +35,19 @@ npx prisma migrate deploy
 
 **Seed production database** (optional, for initial data):
 ```bash
+# Development seed (full demo data)
 npm run db:seed
+
+# Production seed (minimal data: 2 colegios, 1 prenda, 1 talla, precios)
+npm run db:seed:prod
 ```
+
+**Production seed includes:**
+- **11 Colegios:** Santa Teresa, J.A.R, Escuela 1, Escuela 2, Valle del Choapa, San Isidro de Cuz-Cuz, Jardin Pluma de Oro, Altue, Escuela Aysén, Politécnico, Luis Alberto Vera
+- **10 Prendas:** Chaqueta polar, Short, Calza, Chaqueta buzo, Polera piqué, Polera gimnasia, Pantalón buzo, Buzo, Falda, Jersey
+- **13 Tallas:** 2, 4, 6, 8, 10, 12, 14, 16, S, M, L, XL, 2XL
+- **Precios:** Configurados por prenda y talla con precios reales (ej: Chaqueta polar talla 4-8: $15.000, talla 10-14: $19.000, etc.)
+- **Total:** ~440 registros de precios (11 colegios × 40 configuraciones de precio)
 
 ---
 
