@@ -225,6 +225,9 @@ export async function updatePedidoClientInfo(
       return { success: false, error: "El detalle no puede exceder 500 caracteres" };
     }
 
+    // Process detalle: trim if exists, otherwise set to null
+    const detalleValue = detalle && detalle.trim() !== "" ? detalle.trim() : null;
+
     const updatedPedido = await prisma.pedido.update({
       where: { id: pedidoId },
       data: {
@@ -232,7 +235,7 @@ export async function updatePedidoClientInfo(
         clienteApellido: clienteApellido.trim() || null,
         clienteTelefono: clienteTelefono.trim() || null,
         clienteEmail: clienteEmail.trim() || null,
-        detalle: detalle?.trim() || null,
+        detalle: detalleValue,
       },
     });
 
@@ -381,6 +384,26 @@ async function generatePedidoCodigo(): Promise<string> {
   }
 
   return `${prefix}-${nextNumber.toString().padStart(4, "0")}`;
+}
+
+export async function deletePedido(pedidoId: number) {
+  try {
+    // Delete all items first (cascade should handle this, but being explicit)
+    await prisma.pedidoItem.deleteMany({
+      where: { pedidoId },
+    });
+
+    // Delete the pedido
+    await prisma.pedido.delete({
+      where: { id: pedidoId },
+    });
+
+    revalidatePath("/pedidos");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting pedido:", error);
+    return { success: false, error: "Failed to delete pedido" };
+  }
 }
 
 export async function createPedido(data: CreatePedidoData) {
