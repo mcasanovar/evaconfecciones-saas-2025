@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { createPedido, CreatePedidoItem } from "@/actions/pedidos";
@@ -58,6 +59,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
   const [clienteApellido, setClienteApellido] = useState("");
   const [clienteTelefono, setClienteTelefono] = useState("");
   const [clienteEmail, setClienteEmail] = useState("");
+  const [detalle, setDetalle] = useState("");
   const [anio, setAnio] = useState<string>(new Date().getFullYear().toString());
   const [fechaEntrega, setFechaEntrega] = useState<string>("");
   const [abono, setAbono] = useState<string>("");
@@ -227,6 +229,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
         clienteApellido: clienteApellido || null,
         clienteTelefono: clienteTelefono || null,
         clienteEmail: clienteEmail || null,
+        detalle: detalle && detalle.trim() !== "" ? detalle.trim() : null,
         anio: parseInt(anio),
         fechaEntrega: fechaEntrega ? new Date(fechaEntrega) : null,
         items: items.map((item) => ({
@@ -273,6 +276,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
     setClienteApellido("");
     setClienteTelefono("");
     setClienteEmail("");
+    setDetalle("");
     setAnio(new Date().getFullYear().toString());
     setFechaEntrega("");
     setAbono("");
@@ -348,6 +352,27 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                   disabled={isSubmitting}
                 />
               </div>
+            </div>
+
+            {/* Detalle / Notas */}
+            <div>
+              <Label htmlFor="detalle">Detalle / Notas (Opcional)</Label>
+              <Textarea
+                id="detalle"
+                value={detalle}
+                onChange={(e) => {
+                  if (e.target.value.length <= 500) {
+                    setDetalle(e.target.value);
+                  }
+                }}
+                placeholder="Agregar notas o detalles especiales del pedido..."
+                disabled={isSubmitting}
+                rows={3}
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {detalle.length}/500 caracteres
+              </p>
             </div>
           </div>
 

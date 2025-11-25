@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PedidoEstado } from "@prisma/client";
 import { motion } from "framer-motion";
-import { Calendar, School, BarcodeIcon } from "lucide-react";
+import { Calendar, BarcodeIcon } from "lucide-react";
 
 interface PedidoCardProps {
   pedido: {
@@ -85,15 +85,6 @@ export function PedidoCard({ pedido, onClick }: PedidoCardProps) {
               {estadoLabels[pedido.estado]}
             </Badge>
           </div>
-
-          {/* Colegio */}
-          {pedido.colegio && (
-            <div className="flex items-center gap-2 text-sm">
-              <School className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">{pedido.colegio.nombre}</span>
-            </div>
-          )}
-
           {/* Dates */}
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
