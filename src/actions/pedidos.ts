@@ -17,6 +17,7 @@ export interface CreatePedidoData {
   clienteApellido: string | null;
   clienteTelefono: string | null;
   clienteEmail: string | null;
+  detalle?: string | null;
   anio: number;
   fechaEntrega: Date | null;
   items: CreatePedidoItem[];
@@ -464,6 +465,7 @@ export async function createPedido(data: CreatePedidoData) {
         clienteApellido: data.clienteApellido,
         clienteTelefono: data.clienteTelefono,
         clienteEmail: data.clienteEmail,
+        detalle: data.detalle,
         colegioId: mainColegioId,
         anio: data.anio,
         estado: PedidoEstado.INGRESADO,

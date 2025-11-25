@@ -92,6 +92,10 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Calculated totals (updated in real-time)
+  const [calculatedTotal, setCalculatedTotal] = useState(0);
+  const [calculatedSaldo, setCalculatedSaldo] = useState(0);
+
   const { toast } = useToast();
 
   // Update local pedido when prop changes
@@ -137,6 +141,31 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
       loadCatalogData();
     }
   }, [open, colegios.length]);
+
+  // Calculate totals in real-time based on items, tempItems, and deletedItemIds
+  useEffect(() => {
+    if (!localPedido) return;
+
+    // Calculate total from existing items (excluding deleted ones)
+    const existingItemsTotal = localPedido.items
+      .filter(item => !deletedItemIds.includes(item.id))
+      .reduce((sum, item) => sum + item.subtotal, 0);
+
+    // Calculate total from temporary items
+    const tempItemsTotal = tempItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+    // Total = existing items + temp items
+    const newTotal = existingItemsTotal + tempItemsTotal;
+
+    // Parse abono value
+    const currentAbono = parseInt(abonoValue) || 0;
+
+    // Calculate saldo
+    const newSaldo = newTotal - currentAbono;
+
+    setCalculatedTotal(newTotal);
+    setCalculatedSaldo(newSaldo);
+  }, [localPedido, tempItems, deletedItemIds, abonoValue]);
 
   const loadCatalogData = async () => {
     const [colegiosData, prendasData, tallasData] = await Promise.all([
@@ -366,7 +395,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     }
 
     // Validate abono is not greater than total
-    if (newAbono > localPedido.total) {
+    if (newAbono > calculatedTotal) {
       toast({
         title: "Error",
         description: "El abono no puede ser mayor que el total del pedido",
@@ -999,7 +1028,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                   <div className="w-80 space-y-3">
                     <div className="flex justify-between text-sm">
                       <span>Total:</span>
-                      <span className="font-semibold">{formatCurrency(localPedido.total)}</span>
+                      <span className="font-semibold">{formatCurrency(calculatedTotal)}</span>
                     </div>
 
                     {/* Abono - Editable */}
@@ -1024,7 +1053,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                             id="abono"
                             type="number"
                             min="0"
-                            max={localPedido.total}
+                            max={calculatedTotal}
                             step="1"
                             value={abonoValue}
                             onChange={(e) => setAbonoValue(e.target.value)}
@@ -1052,15 +1081,15 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                         </div>
                       ) : (
                         <div className="text-right text-green-600 font-medium">
-                          {formatCurrency(localPedido.abono)}
+                          {formatCurrency(parseInt(abonoValue) || 0)}
                         </div>
                       )}
                     </div>
 
                     <div className="flex justify-between text-lg font-bold border-t pt-2">
                       <span>Saldo:</span>
-                      <span className={localPedido.saldo > 0 ? "text-red-600" : "text-green-600"}>
-                        {formatCurrency(localPedido.saldo)}
+                      <span className={calculatedSaldo > 0 ? "text-red-600" : "text-green-600"}>
+                        {formatCurrency(calculatedSaldo)}
                       </span>
                     </div>
                   </div>
