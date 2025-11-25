@@ -13,6 +13,7 @@
     "db:generate": "npx prisma generate",
     "db:push": "npx prisma db push",
     "db:test": "tsx scripts/test-db-connection.ts",
+    "db:update-prices": "tsx scripts/update-falda-jersey-prices.ts",
     "pre-deploy": "bash scripts/pre-deploy-check.sh",
     "postinstall": "prisma generate"
   },

@@ -30,10 +30,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updatePedidoItemStatus, updatePedidoEstado, updatePedidoAbono, addItemToPedido, deletePedidoItem, updatePedidoClientInfo } from "@/actions/pedidos";
+import { updatePedidoItemStatus, updatePedidoEstado, updatePedidoAbono, addItemToPedido, deletePedidoItem, updatePedidoClientInfo, deletePedido } from "@/actions/pedidos";
 import { getActiveColegios, getActivePrendas, getActiveTallas, getPrecio } from "@/actions/catalog";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, CheckCircle2, Save, Plus, Trash2, Edit2 } from "lucide-react";
+import { Calendar, CheckCircle2, Save, Plus, Trash2, Edit2, AlertTriangle } from "lucide-react";
 import { Colegio, Prenda, Talla } from "@prisma/client";
 
 interface PedidoDetailModalProps {
@@ -88,6 +88,10 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
   const [selectedTalla, setSelectedTalla] = useState<string>("");
   const [cantidad, setCantidad] = useState<string>("1");
 
+  // Delete pedido state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const { toast } = useToast();
 
   // Update local pedido when prop changes
@@ -127,12 +131,12 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     }
   }, [localPedido]);
 
-  // Load catalog data when starting to add item
+  // Load catalog data when modal opens
   useEffect(() => {
-    if (isAddingItem && colegios.length === 0) {
+    if (open && colegios.length === 0) {
       loadCatalogData();
     }
-  }, [isAddingItem, colegios.length]);
+  }, [open, colegios.length]);
 
   const loadCatalogData = async () => {
     const [colegiosData, prendasData, tallasData] = await Promise.all([
@@ -562,6 +566,43 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     setTempItems(tempItems.filter(item => item.tempId !== tempId));
   };
 
+  const handleDeletePedido = async () => {
+    if (!localPedido) return;
+
+    setIsDeleting(true);
+    try {
+      const result = await deletePedido(localPedido.id);
+
+      if (result.success) {
+        toast({
+          title: "✅ Pedido eliminado",
+          description: `El pedido #${localPedido.codigo} ha sido eliminado exitosamente.`,
+          duration: 3000,
+        });
+        setIsDeleteDialogOpen(false);
+        onUpdate();
+        onOpenChange(false);
+      } else {
+        toast({
+          title: "❌ Error al eliminar",
+          description: result.error || "No se pudo eliminar el pedido.",
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting pedido:", error);
+      toast({
+        title: "❌ Error inesperado",
+        description: "No se pudo eliminar el pedido. Por favor, inténtelo nuevamente.",
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("es-CL", {
       style: "currency",
@@ -604,12 +645,20 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
         <DialogHeader>
           <div>
             <DialogTitle className="text-xl sm:text-2xl">
-              {isLoading || !localPedido ? "Cargando..." : `Pedido #${localPedido.codigo}`}
+              {isLoading || !localPedido
+                ? "Cargando..."
+                : `${localPedido.clienteNombre}${localPedido.clienteApellido ? ` ${localPedido.clienteApellido}` : ''}`
+              }
             </DialogTitle>
             {localPedido && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Creado el {formatDate(localPedido.fechaCreacion)}
-              </p>
+              <div className="space-y-0.5">
+                <p className="text-sm text-muted-foreground">
+                  Creado el {formatDate(localPedido.fechaCreacion)}
+                </p>
+                <p className="text-sm font-medium text-primary">
+                  Pedido #{localPedido.codigo}
+                </p>
+              </div>
             )}
           </div>
         </DialogHeader>
@@ -1019,43 +1068,114 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
               </div>
             </div>
 
-            <DialogFooter className="gap-2">
-              {localPedido.estado !== PedidoEstado.ENTREGADO && allItemsReady && (
+            <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2">
+              {/* Delete button on the left */}
+              <Button
+                onClick={() => setIsDeleteDialogOpen(true)}
+                disabled={isSaving || isDeleting}
+                variant="destructive"
+                className="sm:mr-auto"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar Pedido
+              </Button>
+
+              {/* Action buttons on the right */}
+              <div className="flex gap-2">
+                {localPedido.estado !== PedidoEstado.ENTREGADO && allItemsReady && (
+                  <Button
+                    onClick={handleMarcarEntregado}
+                    disabled={isSaving}
+                    variant="default"
+                    className="transition-all duration-200"
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Procesando...
+                      </>
+                    ) : (
+                      "Marcar como Entregado"
+                    )}
+                  </Button>
+                )}
                 <Button
-                  onClick={handleMarcarEntregado}
-                  disabled={isSaving}
+                  onClick={handleSaveChanges}
+                  disabled={isSaving || !hasChanges}
                   variant="default"
                   className="transition-all duration-200"
                 >
                   {isSaving ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Procesando...
+                      Guardando...
                     </>
                   ) : (
-                    "Marcar como Entregado"
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Guardar Cambios
+                    </>
                   )}
                 </Button>
-              )}
-              <Button
-                onClick={handleSaveChanges}
-                disabled={isSaving || !hasChanges}
-                variant="default"
-                className="transition-all duration-200"
-              >
-                {isSaving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Guardar Cambios
-                  </>
-                )}
-              </Button>
+              </div>
             </DialogFooter>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="h-5 w-5" />
+                    Confirmar Eliminación
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    ¿Estás seguro de que deseas eliminar este pedido?
+                  </p>
+                  <div className="bg-muted p-3 rounded-lg space-y-1">
+                    <p className="text-sm font-medium">
+                      {localPedido.clienteNombre} {localPedido.clienteApellido}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Pedido #{localPedido.codigo}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Total: {formatCurrency(localPedido.total)}
+                    </p>
+                  </div>
+                  <p className="text-sm font-medium text-destructive">
+                    Esta acción no se puede deshacer.
+                  </p>
+                </div>
+                <DialogFooter className="gap-2">
+                  <Button
+                    onClick={() => setIsDeleteDialogOpen(false)}
+                    disabled={isDeleting}
+                    variant="outline"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleDeletePedido}
+                    disabled={isDeleting}
+                    variant="destructive"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Eliminando...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Eliminar
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </>
         )}
       </DialogContent>
