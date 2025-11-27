@@ -32,10 +32,10 @@ export function PedidosFilters({
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-center mb-6">FILTROS</h2>
+      <h2 className="text-xl sm:text-2xl font-bold text-center mb-4 sm:mb-6">FILTROS</h2>
 
-      <Card className="p-6 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <Card className="p-4 sm:p-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <Input
             type="text"
             placeholder="Buscar por cliente o código..."
@@ -46,6 +46,7 @@ export function PedidosFilters({
                 onSearch();
               }
             }}
+            className="sm:col-span-2 md:col-span-1"
           />
 
           <Select value={estado} onValueChange={onEstadoChange}>
@@ -79,7 +80,7 @@ export function PedidosFilters({
           </Button>
         </div>
 
-        <Button variant="default" className="w-full mt-4" onClick={onLoadAll}>
+        <Button variant="default" className="w-full mt-3 sm:mt-4" onClick={onLoadAll}>
           Cargar todos los pedidos
         </Button>
       </Card>
