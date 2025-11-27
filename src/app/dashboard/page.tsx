@@ -33,16 +33,16 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-slate-100">
       <Header currentPage="dashboard" />
 
-      <main className="container mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-2">
+      <main className="container mx-auto px-4 sm:px-6 py-4 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
             Resumen general de pedidos y ventas
           </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <StatsCard
             title="Total Pedidos"
             value={stats.totalPedidos}
@@ -87,11 +87,11 @@ export default async function DashboardPage() {
         </div>
 
         {/* Recent Orders */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <RecentOrders pedidos={recentPedidos} />
 
           {/* Placeholder for future chart */}
-          <div className="bg-white rounded-lg border p-6">
+          <div className="bg-white rounded-lg border p-4 sm:p-6">
             <h3 className="text-lg font-semibold mb-4">Pedidos por Estado</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">

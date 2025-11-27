@@ -134,9 +134,9 @@ export function PreciosTable({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 flex-1 max-w-md">
-          <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por colegio, prenda o talla..."
@@ -146,21 +146,23 @@ export function PreciosTable({
               className="pl-10"
             />
           </div>
-          <Button onClick={handleSearch} variant="secondary" size="sm">
-            Buscar
-          </Button>
-          <Button onClick={handleClear} variant="outline" size="sm">
-            Limpiar
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleSearch} variant="secondary" size="sm" className="flex-1 sm:flex-none">
+              Buscar
+            </Button>
+            <Button onClick={handleClear} variant="outline" size="sm" className="flex-1 sm:flex-none">
+              Limpiar
+            </Button>
+          </div>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
+        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Nuevo Precio
         </Button>
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Desktop Table View */}
+      <Card className="hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b bg-muted/50">
@@ -216,6 +218,52 @@ export function PreciosTable({
           </table>
         </div>
       </Card>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {precios.length === 0 ? (
+          <Card className="p-6 text-center text-muted-foreground">
+            {search ? "No se encontraron precios con ese criterio" : "No hay precios registrados"}
+          </Card>
+        ) : (
+          precios.map((precio) => (
+            <Card key={precio.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0 space-y-2">
+                  <h3 className="font-medium text-base truncate">{precio.colegio.nombre}</h3>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p>{precio.prenda.nombre} - {precio.talla.nombre}</p>
+                  </div>
+                  <div className="text-lg font-semibold text-primary">
+                    {formatPrice(precio.precio)}
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEdit(precio)}
+                    className="h-9 w-9 p-0"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDeletingPrecio(precio);
+                      setIsDeleteDialogOpen(true);
+                    }}
+                    className="h-9 w-9 p-0"
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (

@@ -817,7 +817,8 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                     )}
                   </span>
                 </div>
-                <div className="border rounded-lg overflow-hidden overflow-x-auto">
+                {/* Desktop Table View */}
+                <div className="hidden md:block border rounded-lg overflow-hidden overflow-x-auto">
                   <table className="w-full min-w-[640px]">
                     <thead className="bg-muted/50">
                       <tr>
@@ -912,6 +913,116 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-3">
+                  {/* Existing items (not deleted) */}
+                  {localPedido.items
+                    .filter((item) => !deletedItemIds.includes(item.id))
+                    .map((item) => {
+                      const isReady = getItemStatus(item.id, item.estaLista);
+                      const hasChange = pendingChanges.has(item.id);
+                      return (
+                        <div
+                          key={item.id}
+                          className={`border rounded-lg p-4 space-y-3 ${isReady ? "bg-green-50 border-green-200" : "bg-white"
+                            }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1 flex-1">
+                              <div className="font-medium text-sm">
+                                {colegios.find(c => c.id === item.colegioId)?.nombre || "N/A"}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {item.prenda?.nombre || "N/A"} - {item.talla?.nombre || "N/A"}
+                              </div>
+                            </div>
+                            {localPedido.estado !== PedidoEstado.ENTREGADO && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteItem(item.id)}
+                                disabled={isSaving}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Cantidad:</span>
+                              <span className="ml-2 font-medium">{item.cantidad}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">P. Unit:</span>
+                              <span className="ml-2 font-medium">{formatCurrency(item.precioUnitario)}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <div className="text-sm font-semibold">
+                              Subtotal: {formatCurrency(item.subtotal)}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Lista</span>
+                              <Checkbox
+                                checked={isReady}
+                                onCheckedChange={() => handleItemToggle(item.id, item.estaLista)}
+                                disabled={isSaving || localPedido.estado === PedidoEstado.ENTREGADO}
+                              />
+                              {hasChange && (
+                                <span className="text-xs text-orange-600">*</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {/* Temporary items (new, not yet saved) */}
+                  {tempItems.map((item) => (
+                    <div
+                      key={item.tempId}
+                      className="border border-blue-200 rounded-lg p-4 space-y-3 bg-blue-50"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1 flex-1">
+                          <div className="font-medium text-sm">
+                            {item.colegioNombre}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {item.prendaNombre} - {item.tallaNombre}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteTempItem(item.tempId)}
+                          disabled={isSaving}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Cantidad:</span>
+                          <span className="ml-2 font-medium">{item.cantidad}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">P. Unit:</span>
+                          <span className="ml-2 font-medium">{formatCurrency(item.precioUnitario)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <div className="text-sm font-semibold">
+                          Subtotal: {formatCurrency(item.subtotal)}
+                        </div>
+                        <span className="text-xs text-blue-600 font-medium">Nuevo</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Add Item Button/Form */}

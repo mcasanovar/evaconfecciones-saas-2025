@@ -95,7 +95,7 @@ export function PedidosPageClient() {
         </div>
       )}
 
-      <main className="container mx-auto px-6 py-8">
+      <main className="container mx-auto px-4 sm:px-6 py-4 sm:py-8">
         <PedidosFilters
           search={filters.search || ""}
           estado={filters.estado || "TODOS"}
@@ -111,13 +111,13 @@ export function PedidosPageClient() {
 
         {/* Results summary */}
         {!isLoading && pedidos.length > 0 && (
-          <div className="mb-4 text-sm text-muted-foreground">
+          <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-muted-foreground">
             Mostrando {pedidos.length} de {total} pedidos
           </div>
         )}
 
         {/* Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
           {pedidos.length > 0 ? (
             // Show actual pedidos
             pedidos.map((pedido) => (
@@ -146,7 +146,7 @@ export function PedidosPageClient() {
 
         {/* Loading more indicator */}
         {isLoading && pedidos.length > 0 && (
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="mt-6 sm:mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {Array.from({ length: 4 }).map((_, i) => (
               <PedidoCardSkeleton key={`loading-${i}`} />
             ))}

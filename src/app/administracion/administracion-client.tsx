@@ -243,7 +243,7 @@ export function AdministracionClient() {
     <div className="min-h-screen bg-slate-100">
       <Header currentPage="administracion" />
 
-      <main className="container mx-auto px-6 py-8">
+      <main className="container mx-auto px-4 sm:px-6 py-4 sm:py-8">
         <h2 className="text-2xl font-bold mb-6">Administración del Catálogo</h2>
 
         <Tabs
@@ -251,7 +251,7 @@ export function AdministracionClient() {
           onValueChange={(value) => updateURLParams(value, 1)}
           className="space-y-4"
         >
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
             <TabsTrigger value="colegios">Colegios</TabsTrigger>
             <TabsTrigger value="prendas">Prendas</TabsTrigger>
             <TabsTrigger value="tallas">Tallas</TabsTrigger>
