@@ -30,10 +30,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updatePedidoItemStatus, updatePedidoEstado, updatePedidoAbono, addItemToPedido, deletePedidoItem, updatePedidoClientInfo, deletePedido } from "@/actions/pedidos";
+import { updatePedidoItemStatus, updatePedidoEstado, updatePedidoAbono, addItemToPedido, deletePedidoItem, updatePedidoClientInfo, deletePedido, updatePedidoItemQuantity } from "@/actions/pedidos";
 import { getActiveColegios, getActivePrendas, getActiveTallas, getPrecio } from "@/actions/catalog";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, CheckCircle2, Save, Plus, Trash2, Edit2, AlertTriangle } from "lucide-react";
+import { Calendar, CheckCircle2, Save, Plus, Trash2, Edit2, AlertTriangle, Minus } from "lucide-react";
 import { Colegio, Prenda, Talla } from "@prisma/client";
 
 interface PedidoDetailModalProps {
@@ -96,12 +96,23 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
   const [calculatedTotal, setCalculatedTotal] = useState(0);
   const [calculatedSaldo, setCalculatedSaldo] = useState(0);
 
+  // Track if item quantities have changed
+  const [hasQuantityChanges, setHasQuantityChanges] = useState(false);
+  // Store original quantities to detect changes
+  const [originalQuantities, setOriginalQuantities] = useState<Map<number, number>>(new Map());
+
   const { toast } = useToast();
 
   // Update local pedido when prop changes
   useEffect(() => {
     if (pedido) {
       setLocalPedido(pedido);
+      // Store original quantities
+      const quantities = new Map<number, number>();
+      pedido.items.forEach(item => {
+        quantities.set(item.id, item.cantidad);
+      });
+      setOriginalQuantities(quantities);
     }
   }, [pedido]);
 
@@ -116,6 +127,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
       setPendingChanges(new Map());
       setIsEditingAbono(false);
       setHasClientChanges(false);
+      setHasQuantityChanges(false);
       setTempItems([]);
       setDeletedItemIds([]);
       setIsAddingItem(false);
@@ -206,7 +218,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     if (!localPedido) return;
 
     // Check if there are any changes to save
-    const hasChanges = pendingChanges.size > 0 || tempItems.length > 0 || deletedItemIds.length > 0 || hasClientChanges;
+    const hasChanges = pendingChanges.size > 0 || tempItems.length > 0 || deletedItemIds.length > 0 || hasClientChanges || hasQuantityChanges;
     if (!hasChanges) return;
 
     // Validate client info if changed
@@ -259,7 +271,19 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
         );
       }
 
-      // 4. Update item statuses
+      // 4. Update item quantities that have changed
+      if (hasQuantityChanges && localPedido) {
+        const quantityUpdates = localPedido.items
+          .filter(item => {
+            const originalQty = originalQuantities.get(item.id);
+            return originalQty !== undefined && originalQty !== item.cantidad;
+          })
+          .map(item => updatePedidoItemQuantity(item.id, item.cantidad));
+
+        operations.push(...quantityUpdates);
+      }
+
+      // 5. Update item statuses
       if (pendingChanges.size > 0) {
         operations.push(
           ...Array.from(pendingChanges.entries()).map(([itemId, newStatus]) =>
@@ -308,6 +332,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
         setTempItems([]);
         setDeletedItemIds([]);
         setHasClientChanges(false);
+        setHasQuantityChanges(false);
 
         onUpdate();
         onOpenChange(false); // Close modal after saving changes
@@ -346,6 +371,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
           duration: 3000,
         });
         setPendingChanges(new Map());
+        setHasQuantityChanges(false);
         onUpdate();
         onOpenChange(false); // Close modal after marking as entregado
       } else {
@@ -595,6 +621,62 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     setTempItems(tempItems.filter(item => item.tempId !== tempId));
   };
 
+  const handleIncrementQuantity = (itemId: number) => {
+    if (!localPedido) return;
+
+    setLocalPedido({
+      ...localPedido,
+      items: localPedido.items.map(item => {
+        if (item.id === itemId) {
+          const newCantidad = item.cantidad + 1;
+          const newSubtotal = item.precioUnitario * newCantidad;
+          return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
+        }
+        return item;
+      })
+    });
+    setHasQuantityChanges(true);
+  };
+
+  const handleDecrementQuantity = (itemId: number) => {
+    if (!localPedido) return;
+
+    setLocalPedido({
+      ...localPedido,
+      items: localPedido.items.map(item => {
+        if (item.id === itemId && item.cantidad > 1) {
+          const newCantidad = item.cantidad - 1;
+          const newSubtotal = item.precioUnitario * newCantidad;
+          return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
+        }
+        return item;
+      })
+    });
+    setHasQuantityChanges(true);
+  };
+
+  const handleIncrementTempQuantity = (tempId: string) => {
+    setTempItems(tempItems.map(item => {
+      if (item.tempId === tempId) {
+        const newCantidad = item.cantidad + 1;
+        const newSubtotal = item.precioUnitario * newCantidad;
+        return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
+      }
+      return item;
+    }));
+  };
+
+  const handleDecrementTempQuantity = (tempId: string) => {
+    setTempItems(tempItems.map(item => {
+      if (item.tempId === tempId && item.cantidad > 1) {
+        const newCantidad = item.cantidad - 1;
+        const newSubtotal = item.precioUnitario * newCantidad;
+        return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
+      }
+      return item;
+    }));
+  };
+
   const handleDeletePedido = async () => {
     if (!localPedido) return;
 
@@ -666,7 +748,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
 
   const readyItemsCount = localPedido?.items.filter((item) => getItemStatus(item.id, item.estaLista)).length || 0;
   const allItemsReady = localPedido ? readyItemsCount === localPedido.items.length : false;
-  const hasChanges = pendingChanges.size > 0 || tempItems.length > 0 || deletedItemIds.length > 0 || hasClientChanges;
+  const hasChanges = pendingChanges.size > 0 || tempItems.length > 0 || deletedItemIds.length > 0 || hasClientChanges || hasQuantityChanges;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -846,7 +928,29 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                               <td className="px-4 py-3 text-sm">{colegios.find(c => c.id === item.colegioId)?.nombre || "N/A"}</td>
                               <td className="px-4 py-3 text-sm">{item.prenda?.nombre || "N/A"}</td>
                               <td className="px-4 py-3 text-sm">{item.talla?.nombre || "N/A"}</td>
-                              <td className="px-4 py-3 text-sm text-center">{item.cantidad}</td>
+                              <td className="px-4 py-3 text-sm">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDecrementQuantity(item.id)}
+                                    disabled={item.cantidad <= 1 || isSaving || localPedido.estado === PedidoEstado.ENTREGADO}
+                                    className="h-7 w-7 p-0"
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="min-w-[2rem] text-center font-medium">{item.cantidad}</span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleIncrementQuantity(item.id)}
+                                    disabled={isSaving || localPedido.estado === PedidoEstado.ENTREGADO}
+                                    className="h-7 w-7 p-0"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </td>
                               <td className="px-4 py-3 text-sm text-right">
                                 {formatCurrency(item.precioUnitario)}
                               </td>
@@ -888,7 +992,29 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                           <td className="px-4 py-3 text-sm">{item.colegioNombre}</td>
                           <td className="px-4 py-3 text-sm">{item.prendaNombre}</td>
                           <td className="px-4 py-3 text-sm">{item.tallaNombre}</td>
-                          <td className="px-4 py-3 text-sm text-center">{item.cantidad}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDecrementTempQuantity(item.tempId)}
+                                disabled={item.cantidad <= 1 || isSaving}
+                                className="h-7 w-7 p-0"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="min-w-[2rem] text-center font-medium">{item.cantidad}</span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleIncrementTempQuantity(item.tempId)}
+                                disabled={isSaving}
+                                className="h-7 w-7 p-0"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </td>
                           <td className="px-4 py-3 text-sm text-right">
                             {formatCurrency(item.precioUnitario)}
                           </td>
@@ -950,14 +1076,34 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                               </Button>
                             )}
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Cantidad:</span>
-                              <span className="ml-2 font-medium">{item.cantidad}</span>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Cantidad:</span>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDecrementQuantity(item.id)}
+                                  disabled={item.cantidad <= 1 || isSaving || localPedido.estado === PedidoEstado.ENTREGADO}
+                                  className="h-7 w-7 p-0"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className="min-w-[2rem] text-center font-medium">{item.cantidad}</span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleIncrementQuantity(item.id)}
+                                  disabled={isSaving || localPedido.estado === PedidoEstado.ENTREGADO}
+                                  className="h-7 w-7 p-0"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
-                            <div>
+                            <div className="flex items-center justify-between text-sm">
                               <span className="text-muted-foreground">P. Unit:</span>
-                              <span className="ml-2 font-medium">{formatCurrency(item.precioUnitario)}</span>
+                              <span className="font-medium">{formatCurrency(item.precioUnitario)}</span>
                             </div>
                           </div>
                           <div className="flex items-center justify-between pt-2 border-t">
@@ -1005,14 +1151,34 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Cantidad:</span>
-                          <span className="ml-2 font-medium">{item.cantidad}</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Cantidad:</span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDecrementTempQuantity(item.tempId)}
+                              disabled={item.cantidad <= 1 || isSaving}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="min-w-[2rem] text-center font-medium">{item.cantidad}</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleIncrementTempQuantity(item.tempId)}
+                              disabled={isSaving}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                        <div>
+                        <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">P. Unit:</span>
-                          <span className="ml-2 font-medium">{formatCurrency(item.precioUnitario)}</span>
+                          <span className="font-medium">{formatCurrency(item.precioUnitario)}</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">

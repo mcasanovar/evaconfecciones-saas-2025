@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { createPedido, CreatePedidoItem } from "@/actions/pedidos";
 import { getActiveColegios, getActivePrendas, getActiveTallas, getPrecio } from "@/actions/catalog";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Minus } from "lucide-react";
 import { Colegio, Prenda, Talla } from "@prisma/client";
 
 interface NewPedidoModalProps {
@@ -157,6 +157,28 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
 
   const handleRemoveItem = (id: string) => {
     setItems(items.filter((item) => item.id !== id));
+  };
+
+  const handleIncrementQuantity = (id: string) => {
+    setItems(items.map(item => {
+      if (item.id === id) {
+        const newCantidad = item.cantidad + 1;
+        const newSubtotal = (item.precio || 0) * newCantidad;
+        return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
+      }
+      return item;
+    }));
+  };
+
+  const handleDecrementQuantity = (id: string) => {
+    setItems(items.map(item => {
+      if (item.id === id && item.cantidad > 1) {
+        const newCantidad = item.cantidad - 1;
+        const newSubtotal = (item.precio || 0) * newCantidad;
+        return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
+      }
+      return item;
+    }));
   };
 
   const calculateTotal = () => {
@@ -498,7 +520,28 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                         <td className="px-4 py-3 text-sm">{item.colegioNombre}</td>
                         <td className="px-4 py-3 text-sm">{item.prendaNombre}</td>
                         <td className="px-4 py-3 text-sm">{item.tallaNombre}</td>
-                        <td className="px-4 py-3 text-sm text-center">{item.cantidad}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDecrementQuantity(item.id)}
+                              disabled={item.cantidad <= 1}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="min-w-[2rem] text-center font-medium">{item.cantidad}</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleIncrementQuantity(item.id)}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-sm text-right">
                           {formatCurrency(item.precio || 0)}
                         </td>
