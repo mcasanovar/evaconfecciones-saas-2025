@@ -153,6 +153,63 @@ export async function updatePedidoItemStatus(itemId: number, estaLista: boolean)
   }
 }
 
+export async function updatePedidoItemQuantity(itemId: number, cantidad: number) {
+  try {
+    // Get the item to recalculate subtotal
+    const item = await prisma.pedidoItem.findUnique({
+      where: { id: itemId },
+      select: { precioUnitario: true, pedidoId: true },
+    });
+
+    if (!item) {
+      return { success: false, error: "Item not found" };
+    }
+
+    // Calculate new subtotal
+    const newSubtotal = item.precioUnitario * cantidad;
+
+    // Update the item
+    await prisma.pedidoItem.update({
+      where: { id: itemId },
+      data: {
+        cantidad,
+        subtotal: newSubtotal,
+      },
+    });
+
+    // Recalculate pedido totals
+    const pedidoItems = await prisma.pedidoItem.findMany({
+      where: { pedidoId: item.pedidoId },
+      select: { subtotal: true },
+    });
+
+    const newTotal = pedidoItems.reduce((sum, i) => sum + i.subtotal, 0);
+
+    // Get current abono
+    const pedido = await prisma.pedido.findUnique({
+      where: { id: item.pedidoId },
+      select: { abono: true },
+    });
+
+    if (pedido) {
+      // Update pedido total and saldo
+      await prisma.pedido.update({
+        where: { id: item.pedidoId },
+        data: {
+          total: newTotal,
+          saldo: newTotal - pedido.abono,
+        },
+      });
+    }
+
+    revalidatePath("/pedidos");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating item quantity:", error);
+    return { success: false, error: "Failed to update item quantity" };
+  }
+}
+
 export async function updatePedidoEstado(pedidoId: number, estado: PedidoEstado) {
   try {
     const pedido = await prisma.pedido.update({
