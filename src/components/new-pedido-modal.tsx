@@ -191,7 +191,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
     return total - abonoNum;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (isDirectSale = false) => {
     // Validate required fields
     if (!clienteNombre || clienteNombre.trim() === "") {
       toast({
@@ -261,12 +261,15 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
           cantidad: item.cantidad,
         })),
         abono: parseFloat(abono) || 0,
+        isDirectSale,
       });
 
       if (result.success) {
         toast({
-          title: "✅ Pedido creado",
-          description: `El pedido #${result.pedido?.codigo} ha sido creado exitosamente con ${items.length} item${items.length > 1 ? 's' : ''}.`,
+          title: isDirectSale ? "✅ Venta directa registrada" : "✅ Pedido creado",
+          description: isDirectSale
+            ? `La venta #${result.pedido?.codigo} ha sido registrada y entregada exitosamente.`
+            : `El pedido #${result.pedido?.codigo} ha sido creado exitosamente con ${items.length} item${items.length > 1 ? 's' : ''}.`,
           duration: 3000,
         });
         handleReset();
@@ -600,29 +603,46 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
           )}
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 flex-col sm:flex-row">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
-            className="transition-all duration-200"
+            className="transition-all duration-200 w-full sm:w-auto"
           >
             Cancelar
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || items.length === 0}
-            className="transition-all duration-200"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Creando...
-              </>
-            ) : (
-              "Crear Pedido"
-            )}
-          </Button>
+          <div className="flex gap-2 flex-1">
+            <Button
+              onClick={() => handleSubmit(true)}
+              disabled={isSubmitting || items.length === 0}
+              className="transition-all duration-200 flex-1 bg-blue-600 hover:bg-blue-700"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Procesando...
+                </>
+              ) : (
+                "Venta Directa"
+              )}
+            </Button>
+            <Button
+              onClick={() => handleSubmit(false)}
+              disabled={isSubmitting || items.length === 0}
+              className="transition-all duration-200 flex-1"
+              variant="default"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Creando...
+                </>
+              ) : (
+                "Crear Pedido"
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
