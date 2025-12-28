@@ -22,6 +22,7 @@ export interface CreatePedidoData {
   fechaEntrega: Date | null;
   items: CreatePedidoItem[];
   abono?: number;
+  isDirectSale?: boolean; // Para ventas directas (items listos y estado ENTREGADO)
 }
 
 export interface GetPedidosParams {
@@ -504,7 +505,7 @@ export async function createPedido(data: CreatePedidoData) {
           cantidad: item.cantidad,
           precioUnitario,
           subtotal,
-          estaLista: false,
+          estaLista: data.isDirectSale || false,
         };
       })
     );
@@ -525,7 +526,7 @@ export async function createPedido(data: CreatePedidoData) {
         detalle: data.detalle,
         colegioId: mainColegioId,
         anio: data.anio,
-        estado: PedidoEstado.INGRESADO,
+        estado: data.isDirectSale ? PedidoEstado.ENTREGADO : PedidoEstado.INGRESADO,
         fechaCreacion: new Date(),
         fechaEntrega: data.fechaEntrega,
         total,
