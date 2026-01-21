@@ -271,7 +271,8 @@ export async function updatePedidoClientInfo(
   clienteApellido: string,
   clienteTelefono: string,
   clienteEmail: string,
-  detalle?: string
+  detalle?: string,
+  fechaEntrega?: Date | null
 ) {
   try {
     // Validate required fields
@@ -295,6 +296,7 @@ export async function updatePedidoClientInfo(
         clienteTelefono: clienteTelefono.trim() || null,
         clienteEmail: clienteEmail.trim() || null,
         detalle: detalleValue,
+        fechaEntrega: fechaEntrega !== undefined ? fechaEntrega : undefined,
       },
     });
 

@@ -149,8 +149,6 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
     };
 
     setItems([...items, newItem]);
-    setSelectedColegio("");
-    setSelectedPrenda("");
     setSelectedTalla("");
     setCantidad("1");
   };

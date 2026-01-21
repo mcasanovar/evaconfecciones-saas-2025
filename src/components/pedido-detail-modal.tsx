@@ -76,6 +76,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
   const [clienteTelefono, setClienteTelefono] = useState<string>("");
   const [clienteEmail, setClienteEmail] = useState<string>("");
   const [detalle, setDetalle] = useState<string>("");
+  const [fechaEntrega, setFechaEntrega] = useState<string>("");
   const [hasClientChanges, setHasClientChanges] = useState(false);
 
   // Add item form state
@@ -144,6 +145,16 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
       setClienteTelefono(localPedido.clienteTelefono || "");
       setClienteEmail(localPedido.clienteEmail || "");
       setDetalle(localPedido.detalle || "");
+      // Format date for input (YYYY-MM-DD)
+      if (localPedido.fechaEntrega) {
+        const date = new Date(localPedido.fechaEntrega);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        setFechaEntrega(`${year}-${month}-${day}`);
+      } else {
+        setFechaEntrega("");
+      }
     }
   }, [localPedido]);
 
@@ -244,7 +255,8 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
             clienteApellido,
             clienteTelefono,
             clienteEmail,
-            detalle
+            detalle,
+            fechaEntrega ? new Date(fechaEntrega) : null
           )
         );
       }
@@ -474,7 +486,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     setIsEditingAbono(false);
   };
 
-  const handleClientInfoChange = (field: 'nombre' | 'apellido' | 'telefono' | 'email' | 'detalle', value: string) => {
+  const handleClientInfoChange = (field: 'nombre' | 'apellido' | 'telefono' | 'email' | 'detalle' | 'fechaEntrega', value: string) => {
     setHasClientChanges(true);
     switch (field) {
       case 'nombre':
@@ -494,6 +506,9 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
         if (value.length <= 500) {
           setDetalle(value);
         }
+        break;
+      case 'fechaEntrega':
+        setFechaEntrega(value);
         break;
     }
   };
@@ -588,12 +603,9 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
         });
       }
 
-      // Reset form
-      setSelectedColegio("");
-      setSelectedPrenda("");
+      // Reset form - mantener colegio y prenda seleccionados
       setSelectedTalla("");
       setCantidad("1");
-      setIsAddingItem(false);
     } catch {
       toast({
         title: "Error",
@@ -850,17 +862,23 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
 
                 <div className="space-y-3">
                   <h3 className="font-semibold text-base sm:text-lg">Detalles del Pedido</h3>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span>Año: {localPedido.anio}</span>
                     </div>
-                    {localPedido.fechaEntrega && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span>Entrega: {formatDate(localPedido.fechaEntrega)}</span>
-                      </div>
-                    )}
+                    <div>
+                      <Label htmlFor="fechaEntrega" className="text-xs">Fecha de Entrega</Label>
+                      <Input
+                        id="fechaEntrega"
+                        type="date"
+                        value={fechaEntrega}
+                        onChange={(e) => handleClientInfoChange('fechaEntrega', e.target.value)}
+                        className="h-8"
+                        disabled={isSaving || localPedido.estado === PedidoEstado.ENTREGADO}
+                        placeholder="Seleccione fecha"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
