@@ -1,7 +1,9 @@
-import { getDashboardStats, getRecentPedidos } from "@/actions/dashboard";
+import { getDashboardStats, getRecentPedidos, getTopPrendas, getTopColegios } from "@/actions/dashboard";
 import { Header } from "@/components/header";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
+import { TopPrendasChart } from "@/components/dashboard/top-prendas-chart";
+import { TopColegiosChart } from "@/components/dashboard/top-colegios-chart";
 import {
   ShoppingCart,
   Package,
@@ -15,9 +17,11 @@ import {
 export const revalidate = 30;
 
 export default async function DashboardPage() {
-  const [stats, recentPedidos] = await Promise.all([
+  const [stats, recentPedidos, topPrendas, topColegios] = await Promise.all([
     getDashboardStats(),
     getRecentPedidos(5),
+    getTopPrendas(),
+    getTopColegios(),
   ]);
 
   const formatCurrency = (amount: number) => {
@@ -146,6 +150,12 @@ export default async function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Top Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6 sm:mt-8">
+          <TopPrendasChart prendas={topPrendas} />
+          <TopColegiosChart colegios={topColegios} />
         </div>
       </main>
     </div>

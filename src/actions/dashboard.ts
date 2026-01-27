@@ -30,6 +30,18 @@ export interface RecentPedido {
   } | null;
 }
 
+export interface TopPrenda {
+  prendaId: number;
+  prendaNombre: string;
+  totalCantidad: number;
+}
+
+export interface TopColegio {
+  colegioId: number;
+  colegioNombre: string;
+  totalCantidad: number;
+}
+
 /**
  * Get dashboard statistics including pedido counts by estado and financial totals.
  * Data is aggregated from the pedidos table.
@@ -162,5 +174,95 @@ export async function getRecentPedidos(limit: number = 5): Promise<RecentPedido[
   } catch (error) {
     console.error("[Dashboard] Error fetching recent pedidos:", error);
     throw new Error("Failed to fetch recent pedidos");
+  }
+}
+
+/**
+ * Get top 5 most sold prendas from all pedidos.
+ * Aggregates cantidad from all PedidoItems regardless of pedido estado.
+ * 
+ * @returns Array of top 5 prendas with total quantity sold
+ */
+export async function getTopPrendas(): Promise<TopPrenda[]> {
+  try {
+    const result = await prisma.pedidoItem.groupBy({
+      by: ["prendaId"],
+      _sum: {
+        cantidad: true,
+      },
+      orderBy: {
+        _sum: {
+          cantidad: "desc",
+        },
+      },
+      take: 5,
+    });
+
+    const topPrendas = await Promise.all(
+      result.map(async (item) => {
+        const prenda = await prisma.prenda.findUnique({
+          where: { id: item.prendaId },
+          select: { nombre: true },
+        });
+
+        return {
+          prendaId: item.prendaId,
+          prendaNombre: prenda?.nombre ?? "Desconocido",
+          totalCantidad: item._sum.cantidad ?? 0,
+        };
+      })
+    );
+
+    console.log("[Dashboard] Top prendas fetched:", topPrendas);
+
+    return topPrendas;
+  } catch (error) {
+    console.error("[Dashboard] Error fetching top prendas:", error);
+    throw new Error("Failed to fetch top prendas");
+  }
+}
+
+/**
+ * Get top 5 most sold colegios from all pedidos.
+ * Aggregates cantidad from all PedidoItems regardless of pedido estado.
+ * 
+ * @returns Array of top 5 colegios with total quantity sold
+ */
+export async function getTopColegios(): Promise<TopColegio[]> {
+  try {
+    const result = await prisma.pedidoItem.groupBy({
+      by: ["colegioId"],
+      _sum: {
+        cantidad: true,
+      },
+      orderBy: {
+        _sum: {
+          cantidad: "desc",
+        },
+      },
+      take: 5,
+    });
+
+    const topColegios = await Promise.all(
+      result.map(async (item) => {
+        const colegio = await prisma.colegio.findUnique({
+          where: { id: item.colegioId },
+          select: { nombre: true },
+        });
+
+        return {
+          colegioId: item.colegioId,
+          colegioNombre: colegio?.nombre ?? "Desconocido",
+          totalCantidad: item._sum.cantidad ?? 0,
+        };
+      })
+    );
+
+    console.log("[Dashboard] Top colegios fetched:", topColegios);
+
+    return topColegios;
+  } catch (error) {
+    console.error("[Dashboard] Error fetching top colegios:", error);
+    throw new Error("Failed to fetch top colegios");
   }
 }
