@@ -34,6 +34,9 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const loadPedidos = useCallback(
     async (append = false) => {
       setIsLoading(true);
+      if (!append) {
+        setPedidos([]);
+      }
       try {
         const skip = append ? pedidos.length : 0;
 
@@ -84,6 +87,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     });
 
     setIsLoading(true);
+    setPedidos([]);
     try {
       const result: GetPedidosResult = await getPedidos({
         search: "",

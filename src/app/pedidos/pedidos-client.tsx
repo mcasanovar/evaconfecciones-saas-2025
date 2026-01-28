@@ -28,10 +28,12 @@ export function PedidosPageClient() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoadingPedido, setIsLoadingPedido] = useState(false);
   const [isNewPedidoModalOpen, setIsNewPedidoModalOpen] = useState(false);
+  const [hasInitialLoad, setHasInitialLoad] = useState(false);
 
   // Load pedidos on mount
   useEffect(() => {
     loadPedidos();
+    setHasInitialLoad(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -85,16 +87,6 @@ export function PedidosPageClient() {
     <div className="min-h-screen bg-slate-100">
       <Header currentPage="pedidos" onNewPedido={handleNewPedido} />
 
-      {/* Full screen loader for filtering */}
-      {isLoading && pedidos.length === 0 && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-8 flex flex-col items-center gap-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="text-lg font-medium">Cargando pedidos...</p>
-          </div>
-        </div>
-      )}
-
       <main className="container mx-auto px-4 sm:px-6 py-4 sm:py-8">
         <PedidosFilters
           search={filters.search || ""}
@@ -118,7 +110,12 @@ export function PedidosPageClient() {
 
         {/* Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-          {pedidos.length > 0 ? (
+          {!hasInitialLoad || (isLoading && pedidos.length === 0) ? (
+            // Show skeleton when loading with no pedidos or on initial load
+            Array.from({ length: 8 }).map((_, i) => (
+              <PedidoCardSkeleton key={`skeleton-${i}`} />
+            ))
+          ) : pedidos.length > 0 ? (
             // Show actual pedidos
             pedidos.map((pedido) => (
               <PedidoCard
@@ -127,12 +124,12 @@ export function PedidosPageClient() {
                 onClick={() => handleCardClick(pedido.id)}
               />
             ))
-          ) : !isLoading ? (
+          ) : (
             // No results (only show when not loading)
             <div className="col-span-full text-center py-12 text-muted-foreground">
               No hay pedidos para mostrar
             </div>
-          ) : null}
+          )}
         </div>
 
         {/* Load More Button */}
