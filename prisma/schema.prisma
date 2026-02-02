@@ -2,7 +2,7 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
@@ -27,9 +27,9 @@ model Colegio {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  precios      ColegioPrendaTallaPrecio[]
-  pedidos      Pedido[]
-  pedidoItems  PedidoItem[]
+  precios     ColegioPrendaTallaPrecio[]
+  pedidos     Pedido[]
+  pedidoItems PedidoItem[]
 }
 
 model Prenda {
@@ -60,7 +60,7 @@ model Talla {
  * Price for a specific Colegio + Prenda + Talla
  */
 model ColegioPrendaTallaPrecio {
-  id        Int      @id @default(autoincrement())
+  id        Int @id @default(autoincrement())
   colegioId Int
   prendaId  Int
   tallaId   Int
@@ -77,8 +77,8 @@ model ColegioPrendaTallaPrecio {
 }
 
 model Pedido {
-  id              Int          @id @default(autoincrement())
-  codigo          String       @unique
+  id              Int     @id @default(autoincrement())
+  codigo          String  @unique
   clienteNombre   String
   clienteApellido String?
   clienteTelefono String?
@@ -93,11 +93,12 @@ model Pedido {
 
   detalle String? // Optional order notes/details (max 500 chars)
 
-  total Int @default(0)
-  abono Int @default(0)
-  saldo Int @default(0)
+  total             Int  @default(0)
+  totalConDescuento Int? // Total with discounts applied, null if no discounts
+  abono             Int  @default(0)
+  saldo             Int  @default(0)
 
-  colegio Colegio? @relation(fields: [colegioId], references: [id])
+  colegio Colegio?     @relation(fields: [colegioId], references: [id])
   items   PedidoItem[]
 
   createdAt DateTime @default(now())
@@ -112,6 +113,7 @@ model PedidoItem {
   tallaId        Int?
   cantidad       Int
   precioUnitario Int
+  descuento      Int     @default(0) // Discount amount in CLP
   subtotal       Int
   estaLista      Boolean @default(false)
 
