@@ -10,6 +10,7 @@ export interface CreatePedidoItem {
   prendaId: number;
   tallaId: number;
   cantidad: number;
+  descuento?: number;
 }
 
 export interface CreatePedidoData {
@@ -159,15 +160,16 @@ export async function updatePedidoItemQuantity(itemId: number, cantidad: number)
     // Get the item to recalculate subtotal
     const item = await prisma.pedidoItem.findUnique({
       where: { id: itemId },
-      select: { precioUnitario: true, pedidoId: true },
+      select: { precioUnitario: true, descuento: true, pedidoId: true },
     });
 
     if (!item) {
       return { success: false, error: "Item not found" };
     }
 
-    // Calculate new subtotal
-    const newSubtotal = item.precioUnitario * cantidad;
+    // Calculate new subtotal with discount
+    const subtotalSinDescuento = item.precioUnitario * cantidad;
+    const newSubtotal = subtotalSinDescuento - item.descuento;
 
     // Update the item
     await prisma.pedidoItem.update({
@@ -181,24 +183,39 @@ export async function updatePedidoItemQuantity(itemId: number, cantidad: number)
     // Recalculate pedido totals
     const pedidoItems = await prisma.pedidoItem.findMany({
       where: { pedidoId: item.pedidoId },
-      select: { subtotal: true },
+      select: { precioUnitario: true, cantidad: true, descuento: true, subtotal: true },
     });
 
-    const newTotal = pedidoItems.reduce((sum, i) => sum + i.subtotal, 0);
+    // Calculate total without discount
+    const totalSinDescuento = pedidoItems.reduce(
+      (sum, i) => sum + (i.precioUnitario * i.cantidad),
+      0
+    );
 
-    // Get current abono
+    // Calculate total with discount
+    const totalConDescuento = pedidoItems.reduce((sum, i) => sum + i.subtotal, 0);
+
+    // Check if there are any discounts
+    const hasDiscounts = pedidoItems.some(i => i.descuento > 0);
+
+    // Get current abono and totalConDescuento
     const pedido = await prisma.pedido.findUnique({
       where: { id: item.pedidoId },
-      select: { abono: true },
+      select: { abono: true, totalConDescuento: true },
     });
 
     if (pedido) {
+      // Calculate saldo based on whether there are discounts
+      const effectiveTotal = hasDiscounts ? totalConDescuento : totalSinDescuento;
+      const newSaldo = effectiveTotal - pedido.abono;
+
       // Update pedido total and saldo
       await prisma.pedido.update({
         where: { id: item.pedidoId },
         data: {
-          total: newTotal,
-          saldo: newTotal - pedido.abono,
+          total: totalSinDescuento,
+          totalConDescuento: hasDiscounts ? totalConDescuento : null,
+          saldo: newSaldo,
         },
       });
     }
@@ -231,23 +248,26 @@ export async function updatePedidoAbono(pedidoId: number, abono: number) {
     // Get the pedido to calculate new saldo
     const pedido = await prisma.pedido.findUnique({
       where: { id: pedidoId },
-      select: { total: true },
+      select: { total: true, totalConDescuento: true },
     });
 
     if (!pedido) {
       return { success: false, error: "Pedido no encontrado" };
     }
 
-    // Validate abono is not negative or greater than total
+    // Use totalConDescuento if it exists (has discounts), otherwise use total
+    const effectiveTotal = pedido.totalConDescuento !== null ? pedido.totalConDescuento : pedido.total;
+
+    // Validate abono is not negative or greater than effective total
     if (abono < 0) {
       return { success: false, error: "El abono no puede ser negativo" };
     }
 
-    if (abono > pedido.total) {
+    if (abono > effectiveTotal) {
       return { success: false, error: "El abono no puede ser mayor que el total" };
     }
 
-    const saldo = pedido.total - abono;
+    const saldo = effectiveTotal - abono;
 
     const updatedPedido = await prisma.pedido.update({
       where: { id: pedidoId },
@@ -313,7 +333,8 @@ export async function addItemToPedido(
   colegioId: number,
   prendaId: number,
   tallaId: number,
-  cantidad: number
+  cantidad: number,
+  descuento: number = 0
 ) {
   try {
     // Get price for the item
@@ -330,7 +351,8 @@ export async function addItemToPedido(
     }
 
     const precioUnitario = precio.precio;
-    const subtotal = precioUnitario * cantidad;
+    const subtotalSinDescuento = precioUnitario * cantidad;
+    const subtotal = subtotalSinDescuento - descuento;
 
     // Create the new item
     const newItem = await prisma.pedidoItem.create({
@@ -341,6 +363,7 @@ export async function addItemToPedido(
         tallaId,
         cantidad,
         precioUnitario,
+        descuento,
         subtotal,
         estaLista: false,
       },
@@ -358,13 +381,27 @@ export async function addItemToPedido(
     });
 
     if (pedido) {
-      const newTotal = pedido.items.reduce((sum, item) => sum + item.subtotal, 0);
-      const newSaldo = newTotal - pedido.abono;
+      // Calculate total without discount
+      const totalSinDescuento = pedido.items.reduce(
+        (sum, item) => sum + (item.precioUnitario * item.cantidad),
+        0
+      );
+
+      // Calculate total with discount
+      const totalConDescuento = pedido.items.reduce((sum, item) => sum + item.subtotal, 0);
+
+      // Check if there are any discounts
+      const hasDiscounts = pedido.items.some(item => item.descuento > 0);
+
+      // Calculate saldo based on whether there are discounts
+      const effectiveTotal = hasDiscounts ? totalConDescuento : totalSinDescuento;
+      const newSaldo = effectiveTotal - pedido.abono;
 
       await prisma.pedido.update({
         where: { id: pedidoId },
         data: {
-          total: newTotal,
+          total: totalSinDescuento,
+          totalConDescuento: hasDiscounts ? totalConDescuento : null,
           saldo: newSaldo,
         },
       });
@@ -383,7 +420,7 @@ export async function deletePedidoItem(itemId: number) {
     // Get the item to find its pedido
     const item = await prisma.pedidoItem.findUnique({
       where: { id: itemId },
-      select: { pedidoId: true, subtotal: true },
+      select: { pedidoId: true },
     });
 
     if (!item) {
@@ -402,13 +439,27 @@ export async function deletePedidoItem(itemId: number) {
     });
 
     if (pedido) {
-      const newTotal = pedido.items.reduce((sum, item) => sum + item.subtotal, 0);
-      const newSaldo = newTotal - pedido.abono;
+      // Calculate total without discount
+      const totalSinDescuento = pedido.items.reduce(
+        (sum, item) => sum + (item.precioUnitario * item.cantidad),
+        0
+      );
+
+      // Calculate total with discount
+      const totalConDescuento = pedido.items.reduce((sum, item) => sum + item.subtotal, 0);
+
+      // Check if there are any discounts
+      const hasDiscounts = pedido.items.some(item => item.descuento > 0);
+
+      // Calculate saldo based on whether there are discounts
+      const effectiveTotal = hasDiscounts ? totalConDescuento : totalSinDescuento;
+      const newSaldo = effectiveTotal - pedido.abono;
 
       await prisma.pedido.update({
         where: { id: item.pedidoId },
         data: {
-          total: newTotal,
+          total: totalSinDescuento,
+          totalConDescuento: hasDiscounts ? totalConDescuento : null,
           saldo: newSaldo,
         },
       });
@@ -498,7 +549,9 @@ export async function createPedido(data: CreatePedidoData) {
         }
 
         const precioUnitario = precio.precio;
-        const subtotal = precioUnitario * item.cantidad;
+        const descuento = item.descuento || 0;
+        const subtotalSinDescuento = precioUnitario * item.cantidad;
+        const subtotal = subtotalSinDescuento - descuento;
 
         return {
           colegioId: item.colegioId,
@@ -506,6 +559,7 @@ export async function createPedido(data: CreatePedidoData) {
           tallaId: item.tallaId,
           cantidad: item.cantidad,
           precioUnitario,
+          descuento,
           subtotal,
           estaLista: data.isDirectSale || false,
         };
@@ -513,9 +567,18 @@ export async function createPedido(data: CreatePedidoData) {
     );
 
     // Calculate totals
-    const total = itemsWithPrices.reduce((sum, item) => sum + item.subtotal, 0);
+    const totalSinDescuento = itemsWithPrices.reduce(
+      (sum, item) => sum + (item.precioUnitario * item.cantidad),
+      0
+    );
+    const totalConDescuento = itemsWithPrices.reduce(
+      (sum, item) => sum + item.subtotal,
+      0
+    );
+    const hasDiscounts = itemsWithPrices.some(item => item.descuento > 0);
+    const total = totalSinDescuento;
     const abono = data.abono || 0;
-    const saldo = total - abono;
+    const saldo = (hasDiscounts ? totalConDescuento : total) - abono;
 
     // Create pedido with items in a transaction
     const pedido = await prisma.pedido.create({
@@ -532,6 +595,7 @@ export async function createPedido(data: CreatePedidoData) {
         fechaCreacion: new Date(),
         fechaEntrega: data.fechaEntrega,
         total,
+        totalConDescuento: hasDiscounts ? totalConDescuento : null,
         abono,
         saldo,
         items: {

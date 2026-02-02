@@ -55,6 +55,7 @@ type TempItem = {
   tallaNombre: string;
   cantidad: number;
   precioUnitario: number;
+  descuento: number;
   subtotal: number;
 };
 
@@ -88,6 +89,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
   const [selectedPrenda, setSelectedPrenda] = useState<string>("");
   const [selectedTalla, setSelectedTalla] = useState<string>("");
   const [cantidad, setCantidad] = useState<string>("1");
+  const [descuento, setDescuento] = useState<string>("0");
 
   // Delete pedido state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -95,7 +97,9 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
 
   // Calculated totals (updated in real-time)
   const [calculatedTotal, setCalculatedTotal] = useState(0);
+  const [calculatedTotalSinDescuento, setCalculatedTotalSinDescuento] = useState(0);
   const [calculatedSaldo, setCalculatedSaldo] = useState(0);
+  const [hasDiscounts, setHasDiscounts] = useState(false);
 
   // Track if item quantities have changed
   const [hasQuantityChanges, setHasQuantityChanges] = useState(false);
@@ -169,25 +173,45 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
   useEffect(() => {
     if (!localPedido) return;
 
-    // Calculate total from existing items (excluding deleted ones)
-    const existingItemsTotal = localPedido.items
-      .filter(item => !deletedItemIds.includes(item.id))
-      .reduce((sum, item) => sum + item.subtotal, 0);
+    const activeItems = localPedido.items.filter(item => !deletedItemIds.includes(item.id));
 
-    // Calculate total from temporary items
-    const tempItemsTotal = tempItems.reduce((sum, item) => sum + item.subtotal, 0);
+    // Calculate total WITHOUT discounts (precioUnitario * cantidad)
+    const existingItemsTotalSinDescuento = activeItems.reduce(
+      (sum, item) => sum + (item.precioUnitario * item.cantidad),
+      0
+    );
+    const tempItemsTotalSinDescuento = tempItems.reduce(
+      (sum, item) => sum + (item.precioUnitario * item.cantidad),
+      0
+    );
+    const totalSinDescuento = existingItemsTotalSinDescuento + tempItemsTotalSinDescuento;
 
-    // Total = existing items + temp items
-    const newTotal = existingItemsTotal + tempItemsTotal;
+    // Calculate total WITH discounts (subtotal already has discount applied)
+    const existingItemsTotalConDescuento = activeItems.reduce(
+      (sum, item) => sum + item.subtotal,
+      0
+    );
+    const tempItemsTotalConDescuento = tempItems.reduce(
+      (sum, item) => sum + item.subtotal,
+      0
+    );
+    const totalConDescuento = existingItemsTotalConDescuento + tempItemsTotalConDescuento;
+
+    // Check if there are any discounts
+    const hasAnyDiscounts = activeItems.some(item => (item.descuento || 0) > 0) ||
+      tempItems.some(item => (item.descuento || 0) > 0);
 
     // Parse abono value
     const currentAbono = parseInt(abonoValue) || 0;
 
-    // Calculate saldo
-    const newSaldo = newTotal - currentAbono;
+    // Use totalConDescuento if there are discounts, otherwise use totalSinDescuento
+    const effectiveTotal = hasAnyDiscounts ? totalConDescuento : totalSinDescuento;
+    const newSaldo = effectiveTotal - currentAbono;
 
-    setCalculatedTotal(newTotal);
+    setCalculatedTotalSinDescuento(totalSinDescuento);
+    setCalculatedTotal(effectiveTotal);
     setCalculatedSaldo(newSaldo);
+    setHasDiscounts(hasAnyDiscounts);
   }, [localPedido, tempItems, deletedItemIds, abonoValue]);
 
   const loadCatalogData = async () => {
@@ -277,7 +301,8 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
               item.colegioId,
               item.prendaId,
               item.tallaId,
-              item.cantidad
+              item.cantidad,
+              item.descuento
             )
           )
         );
@@ -527,6 +552,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     const prendaId = parseInt(selectedPrenda);
     const tallaId = parseInt(selectedTalla);
     const cant = parseInt(cantidad);
+    const desc = parseInt(descuento) || 0;
 
     try {
       // Get price from catalog
@@ -541,17 +567,38 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
         return;
       }
 
+      // Validate descuento
+      const subtotalSinDescuento = precioUnitario * cant;
+      if (desc < 0) {
+        toast({
+          title: "Error",
+          description: "El descuento no puede ser negativo",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (desc > subtotalSinDescuento) {
+        toast({
+          title: "Error",
+          description: "El descuento no puede ser mayor que el subtotal",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Check if item already exists in temp items
       const existingTempItemIndex = tempItems.findIndex(
         item => item.colegioId === colegioId && item.prendaId === prendaId && item.tallaId === tallaId
       );
 
       if (existingTempItemIndex !== -1) {
-        // Update existing temp item quantity
+        // Update existing temp item quantity and recalculate with discount
         const updatedTempItems = [...tempItems];
         const existingItem = updatedTempItems[existingTempItemIndex];
         existingItem.cantidad += cant;
-        existingItem.subtotal = existingItem.precioUnitario * existingItem.cantidad;
+        const newSubtotalSinDescuento = existingItem.precioUnitario * existingItem.cantidad;
+        existingItem.subtotal = newSubtotalSinDescuento;
         setTempItems(updatedTempItems);
 
         toast({
@@ -581,7 +628,8 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
         const prenda = prendas.find(p => p.id === prendaId);
         const talla = tallas.find(t => t.id === tallaId);
 
-        // Create temporary item
+        // Create temporary item with discount
+        const subtotalConDescuento = subtotalSinDescuento - desc;
         const newTempItem: TempItem = {
           tempId: `temp-${Date.now()}`,
           colegioId,
@@ -592,7 +640,8 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
           tallaNombre: talla?.nombre || "",
           cantidad: cant,
           precioUnitario,
-          subtotal: precioUnitario * cant,
+          descuento: desc,
+          subtotal: subtotalConDescuento,
         };
 
         setTempItems([...tempItems, newTempItem]);
@@ -606,6 +655,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
       // Reset form - mantener colegio y prenda seleccionados
       setSelectedTalla("");
       setCantidad("1");
+      setDescuento("0");
     } catch {
       toast({
         title: "Error",
@@ -620,6 +670,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     setSelectedPrenda("");
     setSelectedTalla("");
     setCantidad("1");
+    setDescuento("0");
     setIsAddingItem(false);
   };
 
@@ -641,7 +692,8 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
       items: localPedido.items.map(item => {
         if (item.id === itemId) {
           const newCantidad = item.cantidad + 1;
-          const newSubtotal = item.precioUnitario * newCantidad;
+          const subtotalSinDescuento = item.precioUnitario * newCantidad;
+          const newSubtotal = subtotalSinDescuento - (item.descuento || 0);
           return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
         }
         return item;
@@ -658,7 +710,8 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
       items: localPedido.items.map(item => {
         if (item.id === itemId && item.cantidad > 1) {
           const newCantidad = item.cantidad - 1;
-          const newSubtotal = item.precioUnitario * newCantidad;
+          const subtotalSinDescuento = item.precioUnitario * newCantidad;
+          const newSubtotal = subtotalSinDescuento - (item.descuento || 0);
           return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
         }
         return item;
@@ -671,7 +724,8 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     setTempItems(tempItems.map(item => {
       if (item.tempId === tempId) {
         const newCantidad = item.cantidad + 1;
-        const newSubtotal = item.precioUnitario * newCantidad;
+        const subtotalSinDescuento = item.precioUnitario * newCantidad;
+        const newSubtotal = subtotalSinDescuento - (item.descuento || 0);
         return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
       }
       return item;
@@ -682,7 +736,8 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
     setTempItems(tempItems.map(item => {
       if (item.tempId === tempId && item.cantidad > 1) {
         const newCantidad = item.cantidad - 1;
-        const newSubtotal = item.precioUnitario * newCantidad;
+        const subtotalSinDescuento = item.precioUnitario * newCantidad;
+        const newSubtotal = subtotalSinDescuento - (item.descuento || 0);
         return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
       }
       return item;
@@ -927,6 +982,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                         <th className="px-4 py-3 text-left text-sm font-medium">Talla</th>
                         <th className="px-4 py-3 text-center text-sm font-medium">Cant.</th>
                         <th className="px-4 py-3 text-right text-sm font-medium">P. Unit.</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium">Descuento</th>
                         <th className="px-4 py-3 text-right text-sm font-medium">Subtotal</th>
                         <th className="px-4 py-3 text-center text-sm font-medium">Lista</th>
                         {localPedido.estado !== PedidoEstado.ENTREGADO && (
@@ -971,6 +1027,15 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                               </td>
                               <td className="px-4 py-3 text-sm text-right">
                                 {formatCurrency(item.precioUnitario)}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right">
+                                {item.descuento && item.descuento > 0 ? (
+                                  <span className="text-orange-600 font-medium">
+                                    -{formatCurrency(item.descuento)}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
                               </td>
                               <td className="px-4 py-3 text-sm text-right font-medium">
                                 {formatCurrency(item.subtotal)}
@@ -1035,6 +1100,15 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                           </td>
                           <td className="px-4 py-3 text-sm text-right">
                             {formatCurrency(item.precioUnitario)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right">
+                            {item.descuento && item.descuento > 0 ? (
+                              <span className="text-orange-600 font-medium">
+                                -{formatCurrency(item.descuento)}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-sm text-right font-medium">
                             {formatCurrency(item.subtotal)}
@@ -1123,6 +1197,16 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                               <span className="text-muted-foreground">P. Unit:</span>
                               <span className="font-medium">{formatCurrency(item.precioUnitario)}</span>
                             </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Descuento:</span>
+                              {item.descuento && item.descuento > 0 ? (
+                                <span className="font-medium text-orange-600">
+                                  -{formatCurrency(item.descuento)}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center justify-between pt-2 border-t">
                             <div className="text-sm font-semibold">
@@ -1198,6 +1282,16 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                           <span className="text-muted-foreground">P. Unit:</span>
                           <span className="font-medium">{formatCurrency(item.precioUnitario)}</span>
                         </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Descuento:</span>
+                          {item.descuento && item.descuento > 0 ? (
+                            <span className="font-medium text-orange-600">
+                              -{formatCurrency(item.descuento)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t">
                         <div className="text-sm font-semibold">
@@ -1225,7 +1319,7 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                     ) : (
                       <div className="border rounded-lg p-3 sm:p-4 space-y-4 bg-muted/30">
                         <h4 className="font-medium text-sm">Agregar Nuevo Item</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                           <div>
                             <Label className="text-xs">Colegio</Label>
                             <Select value={selectedColegio} onValueChange={setSelectedColegio}>
@@ -1284,6 +1378,19 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
                               required
                             />
                           </div>
+                          <div>
+                            <Label className="text-xs">Descuento</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={descuento}
+                              onChange={(e) => setDescuento(e.target.value)}
+                              className="h-9"
+                              disabled={isSaving}
+                              placeholder="0"
+                            />
+                          </div>
                           <div className="flex items-end gap-2">
                             <Button
                               size="sm"
@@ -1321,10 +1428,27 @@ export function PedidoDetailModal({ pedido, open, onOpenChange, onUpdate, isLoad
               <div className="border-t pt-4">
                 <div className="flex justify-end">
                   <div className="w-80 space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span>Total:</span>
-                      <span className="font-semibold">{formatCurrency(calculatedTotal)}</span>
-                    </div>
+                    {hasDiscounts ? (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span>Total sin descuento:</span>
+                          <span className="font-semibold line-through text-muted-foreground">
+                            {formatCurrency(calculatedTotalSinDescuento)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-base">
+                          <span className="font-semibold">Total con descuento:</span>
+                          <span className="font-bold text-green-600">
+                            {formatCurrency(calculatedTotal)}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-between text-sm">
+                        <span>Total:</span>
+                        <span className="font-semibold">{formatCurrency(calculatedTotal)}</span>
+                      </div>
+                    )}
 
                     {/* Abono - Editable */}
                     <div className="space-y-2">
