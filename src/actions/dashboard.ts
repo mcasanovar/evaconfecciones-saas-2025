@@ -23,7 +23,7 @@ export interface RecentPedido {
   clienteNombre: string;
   clienteApellido: string | null;
   estado: PedidoEstado;
-  total: number;
+  total: number; // This will be the effective total (with discount if exists)
   fechaCreacion: Date;
   colegio: {
     nombre: string;
@@ -71,22 +71,32 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         where: { estado: PedidoEstado.ENTREGADO },
       }),
 
-      // Totales de ventas y saldos
-      prisma.pedido.aggregate({
-        _sum: {
+      // Get all pedidos to calculate totals correctly (use totalConDescuento if exists, otherwise total)
+      prisma.pedido.findMany({
+        select: {
           total: true,
+          totalConDescuento: true,
           saldo: true,
         },
       }),
     ]);
+
+    // Calculate totalVentas using totalConDescuento when it exists, otherwise use total
+    const totalVentas = totalesResult.reduce((sum, pedido) => {
+      const effectiveTotal = pedido.totalConDescuento !== null ? pedido.totalConDescuento : pedido.total;
+      return sum + effectiveTotal;
+    }, 0);
+
+    // Sum all saldos
+    const saldoPendiente = totalesResult.reduce((sum, pedido) => sum + pedido.saldo, 0);
 
     const stats = {
       totalPedidos,
       pedidosIngresados,
       pedidosEnProceso,
       pedidosEntregados,
-      totalVentas: totalesResult._sum.total ?? 0,
-      saldoPendiente: totalesResult._sum.saldo ?? 0,
+      totalVentas,
+      saldoPendiente,
     };
 
     console.log("[Dashboard] Stats fetched:", {
@@ -159,6 +169,7 @@ export async function getRecentPedidos(limit: number = 5): Promise<RecentPedido[
         clienteApellido: true,
         estado: true,
         total: true,
+        totalConDescuento: true,
         fechaCreacion: true,
         colegio: {
           select: {
@@ -168,9 +179,21 @@ export async function getRecentPedidos(limit: number = 5): Promise<RecentPedido[
       },
     });
 
-    console.log(`[Dashboard] Fetched ${pedidos.length} recent pedidos`);
+    // Map to return effective total (totalConDescuento if exists, otherwise total)
+    const mappedPedidos = pedidos.map(pedido => ({
+      id: pedido.id,
+      codigo: pedido.codigo,
+      clienteNombre: pedido.clienteNombre,
+      clienteApellido: pedido.clienteApellido,
+      estado: pedido.estado,
+      total: pedido.totalConDescuento !== null ? pedido.totalConDescuento : pedido.total,
+      fechaCreacion: pedido.fechaCreacion,
+      colegio: pedido.colegio,
+    }));
 
-    return pedidos;
+    console.log(`[Dashboard] Fetched ${mappedPedidos.length} recent pedidos`);
+
+    return mappedPedidos;
   } catch (error) {
     console.error("[Dashboard] Error fetching recent pedidos:", error);
     throw new Error("Failed to fetch recent pedidos");

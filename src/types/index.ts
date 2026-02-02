@@ -45,6 +45,7 @@ export interface CreatePedidoItemData {
   tallaId?: number;
   cantidad: number;
   precioUnitario: number;
+  descuento?: number;
 }
 
 export interface UpdatePedidoData extends Partial<CreatePedidoData> {

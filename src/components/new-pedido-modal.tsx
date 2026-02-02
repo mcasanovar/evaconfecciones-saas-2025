@@ -39,6 +39,7 @@ interface PedidoItem extends CreatePedidoItem {
   id: string;
   colegioId: number;
   precio?: number;
+  descuento?: number;
   subtotal?: number;
   prendaNombre?: string;
   tallaNombre?: string;
@@ -70,6 +71,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
   const [selectedPrenda, setSelectedPrenda] = useState<string>("");
   const [selectedTalla, setSelectedTalla] = useState<string>("");
   const [cantidad, setCantidad] = useState<string>("1");
+  const [descuento, setDescuento] = useState<string>("0");
 
   // Load catalog data
   useEffect(() => {
@@ -108,6 +110,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
     const prendaId = parseInt(selectedPrenda);
     const tallaId = parseInt(selectedTalla);
     const cant = parseInt(cantidad);
+    const desc = parseInt(descuento) || 0;
 
     // Validate cantidad is positive
     if (isNaN(cant) || cant <= 0) {
@@ -131,6 +134,26 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
       return;
     }
 
+    // Validate descuento
+    if (desc < 0) {
+      toast({
+        title: "Error",
+        description: "El descuento no puede ser negativo",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const subtotalSinDescuento = precio * cant;
+    if (desc > subtotalSinDescuento) {
+      toast({
+        title: "Error",
+        description: "El descuento no puede ser mayor que el subtotal",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const colegio = colegios.find((c) => c.id === colegioId);
     const prenda = prendas.find((p) => p.id === prendaId);
     const talla = tallas.find((t) => t.id === tallaId);
@@ -142,7 +165,8 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
       tallaId,
       cantidad: cant,
       precio,
-      subtotal: precio * cant,
+      descuento: desc,
+      subtotal: subtotalSinDescuento - desc,
       colegioNombre: colegio?.nombre,
       prendaNombre: prenda?.nombre,
       tallaNombre: talla?.nombre,
@@ -151,6 +175,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
     setItems([...items, newItem]);
     setSelectedTalla("");
     setCantidad("1");
+    setDescuento("0");
   };
 
   const handleRemoveItem = (id: string) => {
@@ -161,7 +186,8 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
     setItems(items.map(item => {
       if (item.id === id) {
         const newCantidad = item.cantidad + 1;
-        const newSubtotal = (item.precio || 0) * newCantidad;
+        const subtotalSinDescuento = (item.precio || 0) * newCantidad;
+        const newSubtotal = subtotalSinDescuento - (item.descuento || 0);
         return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
       }
       return item;
@@ -172,7 +198,8 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
     setItems(items.map(item => {
       if (item.id === id && item.cantidad > 1) {
         const newCantidad = item.cantidad - 1;
-        const newSubtotal = (item.precio || 0) * newCantidad;
+        const subtotalSinDescuento = (item.precio || 0) * newCantidad;
+        const newSubtotal = subtotalSinDescuento - (item.descuento || 0);
         return { ...item, cantidad: newCantidad, subtotal: newSubtotal };
       }
       return item;
@@ -180,11 +207,19 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
   };
 
   const calculateTotal = () => {
+    return items.reduce((sum, item) => sum + ((item.precio || 0) * item.cantidad), 0);
+  };
+
+  const calculateTotalConDescuento = () => {
     return items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
   };
 
+  const hasDiscounts = () => {
+    return items.some(item => (item.descuento || 0) > 0);
+  };
+
   const calculateSaldo = () => {
-    const total = calculateTotal();
+    const total = hasDiscounts() ? calculateTotalConDescuento() : calculateTotal();
     const abonoNum = parseFloat(abono) || 0;
     return total - abonoNum;
   };
@@ -221,7 +256,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
     }
 
     // Validate abono
-    const total = calculateTotal();
+    const total = hasDiscounts() ? calculateTotalConDescuento() : calculateTotal();
     const abonoNum = parseFloat(abono) || 0;
 
     if (abonoNum < 0) {
@@ -257,6 +292,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
           prendaId: item.prendaId,
           tallaId: item.tallaId,
           cantidad: item.cantidad,
+          descuento: item.descuento || 0,
         })),
         abono: parseFloat(abono) || 0,
         isDirectSale,
@@ -308,6 +344,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
     setSelectedPrenda("");
     setSelectedTalla("");
     setCantidad("1");
+    setDescuento("0");
   };
 
   const formatCurrency = (amount: number) => {
@@ -318,7 +355,9 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
   };
 
   const total = calculateTotal();
+  const totalConDescuento = calculateTotalConDescuento();
   const saldo = calculateSaldo();
+  const tieneDescuentos = hasDiscounts();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -431,7 +470,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
           {/* Add Items */}
           <div className="space-y-4">
             <h3 className="font-semibold text-base sm:text-lg">Agregar Items</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
               <div>
                 <Label>Colegio *</Label>
                 <Select value={selectedColegio} onValueChange={setSelectedColegio}>
@@ -489,6 +528,18 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                   required
                 />
               </div>
+              <div>
+                <Label>Descuento</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={descuento}
+                  onChange={(e) => setDescuento(e.target.value)}
+                  disabled={isSubmitting}
+                  placeholder="0"
+                />
+              </div>
               <div className="flex items-end">
                 <Button onClick={handleAddItem} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
@@ -511,6 +562,7 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                       <th className="px-4 py-3 text-left text-sm font-medium">Talla</th>
                       <th className="px-4 py-3 text-center text-sm font-medium">Cant.</th>
                       <th className="px-4 py-3 text-right text-sm font-medium">P. Unit.</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">Descuento</th>
                       <th className="px-4 py-3 text-right text-sm font-medium">Subtotal</th>
                       <th className="px-4 py-3 text-center text-sm font-medium">Acción</th>
                     </tr>
@@ -546,6 +598,15 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
                         <td className="px-4 py-3 text-sm text-right">
                           {formatCurrency(item.precio || 0)}
                         </td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          {item.descuento && item.descuento > 0 ? (
+                            <span className="text-orange-600 font-medium">
+                              -{formatCurrency(item.descuento)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-sm text-right font-medium">
                           {formatCurrency(item.subtotal || 0)}
                         </td>
@@ -571,17 +632,34 @@ export function NewPedidoModal({ open, onOpenChange, onSuccess }: NewPedidoModal
             <div className="border-t pt-4">
               <div className="flex justify-end">
                 <div className="w-80 space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span>Total:</span>
-                    <span className="font-semibold">{formatCurrency(total)}</span>
-                  </div>
+                  {tieneDescuentos ? (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span>Total sin descuento:</span>
+                        <span className="font-semibold line-through text-muted-foreground">
+                          {formatCurrency(total)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-base">
+                        <span className="font-semibold">Total con descuento:</span>
+                        <span className="font-bold text-green-600">
+                          {formatCurrency(totalConDescuento)}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-sm">
+                      <span>Total:</span>
+                      <span className="font-semibold">{formatCurrency(total)}</span>
+                    </div>
+                  )}
                   <div>
                     <Label htmlFor="abono">Abono</Label>
                     <Input
                       id="abono"
                       type="number"
                       min="0"
-                      max={total}
+                      max={tieneDescuentos ? totalConDescuento : total}
                       step="1"
                       value={abono}
                       onChange={(e) => setAbono(e.target.value)}
