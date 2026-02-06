@@ -37,11 +37,20 @@ export function PedidosPageClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load pedidos when estado filter changes
+  useEffect(() => {
+    if (hasInitialLoad) {
+      loadPedidos(false, filters);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.estado]);
+
   const handleSearch = () => {
     loadPedidos();
   };
 
   const handleLoadAll = () => {
+    setFilters({ ...filters, estado: "TODOS" });
     loadAllPedidos();
   };
 
@@ -93,7 +102,9 @@ export function PedidosPageClient() {
           estado={filters.estado || "TODOS"}
           anio={filters.anio?.toString() || "TODOS"}
           onSearchChange={(value) => setFilters({ ...filters, search: value })}
-          onEstadoChange={(value) => setFilters({ ...filters, estado: value as "TODOS" | "INGRESADO" | "EN_PROCESO" | "ENTREGADO" })}
+          onEstadoChange={(value) =>
+            setFilters({ ...filters, estado: value as "TODOS" | "INGRESADO" | "EN_PROCESO" | "ENTREGADO" })
+          }
           onAnioChange={(value) =>
             setFilters({ ...filters, anio: value === "TODOS" ? undefined : parseInt(value) })
           }

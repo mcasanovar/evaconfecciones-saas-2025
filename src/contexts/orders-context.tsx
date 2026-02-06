@@ -12,7 +12,7 @@ interface OrdersContextType {
   isLoading: boolean;
   filters: PedidosFilters;
   setFilters: (filters: PedidosFilters) => void;
-  loadPedidos: (append?: boolean) => Promise<void>;
+  loadPedidos: (append?: boolean, customFilters?: PedidosFilters) => Promise<void>;
   loadMore: () => Promise<void>;
   resetFilters: () => void;
   loadAllPedidos: () => Promise<void>;
@@ -32,7 +32,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   });
 
   const loadPedidos = useCallback(
-    async (append = false) => {
+    async (append = false, customFilters?: PedidosFilters) => {
+      const activeFilters = customFilters || filters;
       setIsLoading(true);
       if (!append) {
         setPedidos([]);
@@ -41,9 +42,9 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         const skip = append ? pedidos.length : 0;
 
         const result: GetPedidosResult = await getPedidos({
-          search: filters.search,
-          estado: filters.estado === "TODOS" ? undefined : (filters.estado as PedidoEstado),
-          anio: filters.anio === undefined ? "TODOS" : filters.anio,
+          search: activeFilters.search,
+          estado: activeFilters.estado === "TODOS" ? undefined : (activeFilters.estado as PedidoEstado),
+          anio: activeFilters.anio === undefined ? "TODOS" : activeFilters.anio,
           skip,
           take: 50,
         });
